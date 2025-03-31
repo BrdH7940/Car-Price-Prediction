@@ -49,6 +49,7 @@ class VehicleDataPreprocessor:
         df = self._process_seller_type(df)
         df = self._process_seating_capacity(df)
         df = self._process_remaining_numeric_cols(df)
+        df = self._process_final_stage(df)
 
         return df
 
@@ -422,4 +423,11 @@ class VehicleDataPreprocessor:
             else:
                 df.drop(['Seating Capacity'], axis=1, inplace=True)
 
+        return df
+
+    def _process_final_stage(self, df):
+        """Chuyển boolean thành các giá trị 0, 1"""
+        for col in df.columns:
+            if df[col].dtype == 'bool':
+                df[col] = df[col].astype(int)
         return df
