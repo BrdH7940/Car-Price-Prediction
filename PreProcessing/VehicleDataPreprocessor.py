@@ -15,7 +15,7 @@ class VehicleDataPreprocessor:
                 print(f"Cảnh báo: Không thể tải make encoder: {e}")
 
         # Giá trị toàn cục cho việc điền giá trị còn thiếu (quan trọng cho tập TEST)
-        self.global_means = {
+        self.global_fill_na = {
             'Max_Power_Value': 117.0,
             'Max_Power_RPM': 4200.0,
             'Max_Torque_Value': 200.0,
@@ -29,6 +29,20 @@ class VehicleDataPreprocessor:
             'Make_encoded': 13.81  # Giá trị trung bình toàn cục cho mã hóa Make
         }
 
+        self.normalization = {
+            "Kilometer":(53191.1834138313, 32879.80430210077),
+            "Length":(4284.273224043716, 441.3003313067076),
+            "Width":(1764.5761991499696, 125.04245739945704),
+            "Fuel Tank Capacity":(52.03691560412872, 14.98612512467079),
+            "Engine_Value":(1680.7843222252202, 572.5427642880683),
+            "Max_Power_Value":(129.1757408654926, 62.90556697702773),
+            "Max_Power_RPM":(4802.425015179114, 1084.3978250935734),
+            "Max_Torque_Value":(244.4114520340012, 138.516871636592),
+            "Max_Torque_RPM":(2593.386763812993, 1185.6349424108332),
+            "Make_encoded":(13.786248965490113, 0.7088298483961224)
+        }
+        
+
     def preprocess(self, df):
         """Pipeline tiền xử lý chính gọi tất cả các phương thức tiền xử lý riêng lẻ"""
         df = df.copy()  # Không sửa đổi dataframe gốc
@@ -36,6 +50,7 @@ class VehicleDataPreprocessor:
         # Xử lý từng cột
         df = self._process_initial_stage(df)
         df = self._process_price(df)
+        df = self._process_year(df)
         df = self._process_engine(df)
         df = self._process_max_power(df)
         df = self._process_max_torque(df)
@@ -50,6 +65,7 @@ class VehicleDataPreprocessor:
         df = self._process_seating_capacity(df)
         df = self._process_remaining_numeric_cols(df)
         df = self._process_final_stage(df)
+        df = self._normalize_data(df)
 
         return df
 
@@ -62,7 +78,11 @@ class VehicleDataPreprocessor:
 
     def _process_initial_stage(self, df):
         """Loại bỏ những cột không cần thiết"""
-        df.drop(["Model", "Year", "Location", "Drivetrain"], axis=1, inplace=True)
+        df.drop(["Model", "Location", "Drivetrain"], axis=1, inplace=True)
+        return df
+    
+    def _process_year(self, df):
+        """Xử lý cột Year"""
         return df
 
     def _process_engine(self, df):
@@ -72,7 +92,7 @@ class VehicleDataPreprocessor:
             df['Engine_Value'] = pd.to_numeric(df['Engine'].str.replace('cc', ''), errors='coerce')
 
             # CHÚ Ý: Điền giá trị NA cho tập TEST với giá trị 1498.0
-            df['Engine_Value'].fillna(self.global_means['Engine_Value'], inplace=True)
+            df['Engine_Value'].fillna(self.global_fill_na['Engine_Value'], inplace=True)
 
             # Xử lý ngoại lai bằng chuyển đổi log
             df['Engine_Value_Log'] = np.log(df['Engine_Value'])
@@ -115,8 +135,8 @@ class VehicleDataPreprocessor:
             # CHÚ Ý: Điền giá trị NA cho tập TEST
             # Fill Max_Power_Value = 117.0 nếu nan
             # Fill Max_Power_RPM = 4200
-            df['Max_Power_Value'].fillna(self.global_means['Max_Power_Value'], inplace=True)
-            df['Max_Power_RPM'].fillna(self.global_means['Max_Power_RPM'], inplace=True)
+            df['Max_Power_Value'].fillna(self.global_fill_na['Max_Power_Value'], inplace=True)
+            df['Max_Power_RPM'].fillna(self.global_fill_na['Max_Power_RPM'], inplace=True)
 
             # Xử lý ngoại lai cho Max_Power_Value
             df['Max_Power_Value_Log'] = np.log(df['Max_Power_Value'])
@@ -152,8 +172,8 @@ class VehicleDataPreprocessor:
             # CHÚ Ý: Điền giá trị NA cho tập TEST
             # Fill Max_Torque_Value = 200.0
             # Fill Max_Torque_RPM = 1900.0
-            df['Max_Torque_Value'].fillna(self.global_means['Max_Torque_Value'], inplace=True)
-            df['Max_Torque_RPM'].fillna(self.global_means['Max_Torque_RPM'], inplace=True)
+            df['Max_Torque_Value'].fillna(self.global_fill_na['Max_Torque_Value'], inplace=True)
+            df['Max_Torque_RPM'].fillna(self.global_fill_na['Max_Torque_RPM'], inplace=True)
 
             # Xử lý ngoại lai cho Max_Torque_Value
             # Sử dụng giá trị cố định từ hướng dẫn gốc
@@ -171,7 +191,7 @@ class VehicleDataPreprocessor:
         """Xử lý cột Width: xử lý giá trị thiếu và ngoại lai"""
         if 'Width' in df.columns:
             # CHÚ Ý: Điền giá trị NA cho tập TEST = 1775.0
-            df['Width'].fillna(self.global_means['Width'], inplace=True)
+            df['Width'].fillna(self.global_fill_na['Width'], inplace=True)
 
             # Xử lý ngoại lai với các giá trị được chỉ định cố định
             lower_bound = 1491.00
@@ -188,7 +208,7 @@ class VehicleDataPreprocessor:
             df['Kilometer_Log'] = np.log1p(df['Kilometer'])
 
             # CHÚ Ý: Điền giá trị NA cho tập TEST = 10.819798284210286
-            df['Kilometer_Log'].fillna(self.global_means['Kilometer_Log'], inplace=True)
+            df['Kilometer_Log'].fillna(self.global_fill_na['Kilometer_Log'], inplace=True)
 
             # Xử lý ngoại lai với các giá trị đã được chỉ định cố định
             lower_bound = 8.91
@@ -214,7 +234,7 @@ class VehicleDataPreprocessor:
 
         for col in numeric_cols:
             if col in df.columns:
-                df[col].fillna(self.global_means[col], inplace=True)
+                df[col].fillna(self.global_fill_na[col], inplace=True)
 
         return df
 
@@ -261,7 +281,7 @@ class VehicleDataPreprocessor:
             df['Make_encoded'] = df['Make'].map(self.make_encoder)
 
             # CHÚ Ý: Điền giá trị NA cho tập TEST = 13.81 (Global_mean)
-            df['Make_encoded'].fillna(self.global_means['Make_encoded'], inplace=True)
+            df['Make_encoded'].fillna(self.global_fill_na['Make_encoded'], inplace=True)
 
             # Loại bỏ cột gốc
             df.drop('Make', axis=1, inplace=True)
@@ -430,4 +450,10 @@ class VehicleDataPreprocessor:
         for col in df.columns:
             if df[col].dtype == 'bool':
                 df[col] = df[col].astype(int)
+        return df
+
+    def _normalize_data(self, df):
+        """Normalize data thành N(0,1)"""
+        for col, (mean, std) in self.normalization.items():
+            df[col] = (df[col] - mean) / std
         return df
