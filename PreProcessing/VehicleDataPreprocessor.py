@@ -41,15 +41,17 @@ class VehicleDataPreprocessor:
             "Max_Torque_RPM":(2593.386763812993, 1185.6349424108332),
             "Make_encoded":(13.786248965490113, 0.7088298483961224)
         }
+
+        self.price_outlier_threshold = 17586000.00
         
 
-    def preprocess(self, df):
+    def preprocess(self, df, train=False):
         """Pipeline tiền xử lý chính gọi tất cả các phương thức tiền xử lý riêng lẻ"""
         df = df.copy()  # Không sửa đổi dataframe gốc
 
         # Xử lý từng cột
         df = self._process_initial_stage(df)
-        df = self._process_price(df)
+        df = self._process_price(df, train=train)
         df = self._process_year(df)
         df = self._process_engine(df)
         df = self._process_max_power(df)
@@ -69,16 +71,18 @@ class VehicleDataPreprocessor:
 
         return df
 
-    def _process_price(self, df):
+    def _process_price(self, df, train):
         """Xử lý cột Price: chuyển đổi log và loại bỏ cột gốc"""
         if 'Price' in df.columns:
             df['Log_Price'] = np.log(df['Price'])
+            if train: df = df[df["Price"] < self.price_outlier_threshold]
             df.drop('Price', axis=1, inplace=True)
         return df
 
     def _process_initial_stage(self, df):
         """Loại bỏ những cột không cần thiết"""
         df.drop(["Model", "Location", "Drivetrain"], axis=1, inplace=True)
+
         return df
     
     def _process_year(self, df):
