@@ -57,9 +57,6 @@ class VehicleDataPreprocessor:
     
     # Các phương thức xử lý cột riêng lẻ sẽ đặt ở đây...
 ```
-
-Bây giờ hãy đi sâu vào từng phương thức xử lý cột cụ thể!
-
 ## 🧩 Các Phương Thức Xử Lý Cột Riêng Lẻ
 
 ### 1️⃣ Cột Price (Giá)
@@ -495,7 +492,7 @@ Nếu file pkl bị lỗi đây là bảng chứa các thông tin quan trọng
 | Seller Type             | "Individual"             |
 | Seating Capacity        | 5                        |
 
-## 🧪 Usage (Cách sử dụng)
+## 🧪 Usage
 ```python
 # Khởi tạo bộ tiền xử lý
 preprocessor = VehicleDataPreprocessor(make_encoder_path='path/to/make_encoder.pkl')
