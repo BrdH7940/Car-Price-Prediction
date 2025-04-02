@@ -26,7 +26,8 @@ class VehicleDataPreprocessor:
             'Length': 4370.0,
             'Height': 1550.0,
             'Fuel Tank Capacity': 50.0,
-            'Make_encoded': 13.81  # Giá trị trung bình toàn cục cho mã hóa Make
+            'Make_encoded': 13.81,  # Giá trị trung bình toàn cục cho mã hóa Make
+            'Drivetrain_encoded': 13.81 # Giá trị trung bình toàn cục cho mã hóa Drivetrain
         }
 
         self.normalization = {
@@ -39,7 +40,8 @@ class VehicleDataPreprocessor:
             "Max_Power_RPM":(4802.425015179114, 1084.3978250935734),
             "Max_Torque_Value":(244.4114520340012, 138.516871636592),
             "Max_Torque_RPM":(2593.386763812993, 1185.6349424108332),
-            "Make_encoded":(13.786248965490113, 0.7088298483961224)
+            "Make_encoded":(13.786248965490113, 0.7088298483961224),
+            "Drivetrain_encoded": (13.80687969810898, 0.6183596634916549)
         }
 
         self.price_outlier_threshold = 17586000.00
@@ -59,6 +61,7 @@ class VehicleDataPreprocessor:
         df = self._process_width(df)
         df = self._process_kilometer(df)
         df = self._process_make(df)
+        df = self._process_drivetrain(df)
         df = self._process_fuel_type(df)
         df = self._process_transmission(df)
         df = self._process_color(df)
@@ -81,7 +84,7 @@ class VehicleDataPreprocessor:
 
     def _process_initial_stage(self, df):
         """Loại bỏ những cột không cần thiết"""
-        df.drop(["Model", "Location", "Drivetrain"], axis=1, inplace=True)
+        df.drop(["Model", "Location"], axis=1, inplace=True)
 
         return df
     
@@ -289,6 +292,22 @@ class VehicleDataPreprocessor:
 
             # Loại bỏ cột gốc
             df.drop('Make', axis=1, inplace=True)
+
+        return df
+
+    def _process_drivetrain(self, df):
+        """Xử lý cột Drivetrain: Target Encoding"""
+        if 'Drivetrain' in df.columns:
+            if self.make_encoder is None:
+                self.make_encoder = {
+                    'FWD': 13.420026478630321,
+                    'RWD': 14.576673709596076,
+                    'AWD': 14.982593641119296
+                }
+
+            df['Drivetrain_encoded'] = df['Drivetrain'].map(self.make_encoder)
+            df['Drivetrain_encoded'].fillna(self.global_fill_na['Drivetrain_encoded'], inplace=True)
+            df.drop('Drivetrain', axis=1, inplace=True)
 
         return df
 
