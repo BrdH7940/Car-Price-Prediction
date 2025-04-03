@@ -41,7 +41,9 @@ class VehicleDataPreprocessor:
             "Max_Torque_Value":(244.4114520340012, 138.516871636592),
             "Max_Torque_RPM":(2593.386763812993, 1185.6349424108332),
             "Make_encoded":(13.786248965490113, 0.7088298483961224),
-            "Drivetrain_encoded": (13.80687969810898, 0.6183596634916549)
+            "Drivetrain_encoded": (13.80687969810898, 0.6183596634916549),
+            "Year": (2016.4195506982392, 3.3703274633057414),
+            "Log_Price": (13.80687969810898, 0.9834000219767532)
         }
 
         self.price_outlier_threshold = 17586000.00
@@ -52,7 +54,7 @@ class VehicleDataPreprocessor:
         df = df.copy()  # Không sửa đổi dataframe gốc
 
         # Xử lý từng cột
-        df = self._process_initial_stage(df)
+        # df = self._process_initial_stage(df)
         df = self._process_price(df, train=train)
         df = self._process_year(df)
         df = self._process_engine(df)

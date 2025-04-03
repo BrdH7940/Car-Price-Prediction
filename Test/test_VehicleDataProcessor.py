@@ -13,7 +13,7 @@ df_train = pd.read_csv('../Data/train.csv')
 # df_test = pd.read_csv('your_test_data.csv')
 
 # Tiền xử lý cả hai bộ dữ liệu
-df_train_processed = preprocessor.preprocess(df_train)
+df_train_processed = preprocessor.preprocess(df_train, train=True, norm=False)
 # df_test_processed = preprocessor.preprocess(df_test)
 
 # Bây giờ dữ liệu của bạn đã sẵn sàng cho việc mô hình hóa!
