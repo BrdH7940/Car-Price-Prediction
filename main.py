@@ -9,7 +9,7 @@ from models.model import LinearRegression
 from utils.visualization import plot_learning_curve
 
 
-def generate_data(n_samples=100, n_features=1, noise=10.0, random_state=69):
+def generate_data(n_samples=100, n_features=3, noise=10.0, random_state=69):
     """Generate synthetic regression data"""
     X, y = make_regression(
         n_samples=n_samples,
@@ -164,7 +164,7 @@ def main():
     print("=" * 50)
     print("Testing with 1D data")
     print("=" * 50)
-    X, y = generate_data(n_samples=100, n_features=2, noise=10.0)
+    X, y = generate_data(n_samples=100, n_features=30, noise=10.0)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42)
 
@@ -178,11 +178,11 @@ def main():
         X_train_scaled, X_test_scaled, y_train, y_test)
 
     # Visualize results for gradient descent
-    if 'gradient_descent' in results:
+    if 'normal_equation' in results:
         visualize_results(
             X_test,
             y_test,
-            results['gradient_descent']['predictions'],
+            results['normal_equation']['predictions'],
             "Gradient Descent Predictions (1D data)"
         )
 

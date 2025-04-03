@@ -95,20 +95,20 @@ class LinearRegression():
         if X.ndim == 1:
             X = X.reshape(-1, 1)
         if y.ndim == 1:
-            y = y.reshape(-1, 1) # Ensure y is a column vector
+            y = y.reshape(-1, 1)  # Ensure y is a column vector
 
         n_samples, n_features = X.shape
         if n_samples != y.shape[0]:
             raise ValueError(f"Incompatible shapes: X has {n_samples} samples, "
-                            f"but y has {y.shape[0]} samples.")
+                             f"but y has {y.shape[0]} samples.")
         if y.shape[1] != 1:
             # Ensure y is a column vector after potential reshaping
             if y.ndim == 2 and y.shape[1] > 1:
-                raise ValueError(f"Target y should be a column vector, but got shape {y.shape}")
+                raise ValueError(
+                    f"Target y should be a column vector, but got shape {y.shape}")
             # If y was originally 1D, the earlier reshape handled it.
             # If y was somehow passed as (1, n_samples), we might need error handling or transpose.
             # Assuming standard (n_samples,) or (n_samples, 1) input is expected.
-
 
         # Initialize parameters using the optimizer's method
         self.weights, self.bias = self.optimizer.initialize(n_features)
@@ -120,7 +120,7 @@ class LinearRegression():
                 X, y, self.weights, self.bias, self.n_iterations,
                 self.regularization, self.lambda_param,
                 self.tol, self.max_iter, verbose
-            )
+        )
 
         self.weights, self.bias, self.cost_history, self.iteration_history = optim_result
 
@@ -151,7 +151,7 @@ class LinearRegression():
         # Kiểm tra shape
         if len(X.shape) == 1:
             X = X.reshape(-1, 1)
-
+        print(X.shape, self.weights.shape, self.bias.shape)
         # Tính dự đoán
         return np.dot(X, self.weights) + self.bias
 

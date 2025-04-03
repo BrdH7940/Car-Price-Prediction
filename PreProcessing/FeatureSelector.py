@@ -11,7 +11,7 @@ class FeatureSelector(object):
             1: [
                 # Numerical
                 # # Features cơ bản
-                "Year",
+                # "Year",
                 "Kilometer",
                 "Make_encoded",
 

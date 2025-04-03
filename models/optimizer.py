@@ -1,5 +1,6 @@
 # utils/optimizers.py
 import numpy as np
+import matplotlib.pyplot as plt
 
 # Hàm tính cost
 
@@ -7,12 +8,7 @@ import numpy as np
 def compute_cost(X, y, weights, bias, regularization=None, lambda_param=0):
     m = X.shape[0]
     y_pred = np.dot(X, weights) + bias
-    cost = (1/(2*m)) * \
-        np.sum((y_pred.reshape((-1, 1)) - y.reshape((-1, 1)))**2)
-    print(y_pred.shape)
-    print(y.shape)
-    print((y_pred - y).shape)
-
+    cost = (1/(2*m)) * np.sum((y_pred.reshape((-1, 1)) - y.reshape((-1, 1)))**2)
     # Thêm regularization nếu có
     if regularization == 'l2':  # Ridge
         cost += (lambda_param/(2*m)) * np.sum(weights**2)
@@ -20,6 +16,31 @@ def compute_cost(X, y, weights, bias, regularization=None, lambda_param=0):
         cost += (lambda_param/m) * np.sum(np.abs(weights))
 
     return cost
+
+
+def visualize_results(X_test, y_test, y_pred, title="Predictions vs. Actual Values"):
+    """Visualize model predictions against actual values"""
+    plt.figure(figsize=(10, 6))
+
+    # For 1D feature, plot data points
+    if X_test.shape[1] == 1:
+        plt.scatter(X_test, y_test, color='blue', label='Actual values')
+        plt.scatter(X_test, y_pred, color='red', label='Predictions')
+        plt.xlabel('X')
+        plt.ylabel('y')
+    else:
+        # For multi-dimensional data, just plot predicted vs actual
+        plt.scatter(y_test, y_pred)
+        plt.xlabel('Actual values')
+        plt.ylabel('Predicted values')
+        # Add perfect prediction line
+        min_val = min(np.min(y_test), np.min(y_pred))
+        max_val = max(np.max(y_test), np.max(y_pred))
+        plt.plot([min_val, max_val], [min_val, max_val], 'k--')
+
+    plt.title(title)
+    plt.legend()
+    plt.show()
 
 
 class BaseOptimizer:
@@ -61,7 +82,10 @@ class BaseOptimizer:
         bias : float
             Bias khởi tạo
         """
-        weights = np.random.randn(n_features) * 0.01
+        # Xavior
+        limit = np.sqrt(6 / (n_features + 1))
+        weights = np.random.uniform(-limit, limit,
+                                    (n_features, )).reshape((-1, 1))
         bias = 0
         return weights, bias
 
@@ -118,12 +142,13 @@ class BaseOptimizer:
 
         dw = (1/m) * (X.T @ (y_pred.reshape((-1, 1)) - y.reshape((-1, 1))))
         db = (1/m) * np.sum(y_pred - y)
+
         # Thêm đạo hàm của regularization
         if regularization == 'l2':  # Ridge
             dw += (lambda_param/m) * weights
         elif regularization == 'l1':  # Lasso
             dw += (lambda_param/m) * np.sign(weights)
-        dw = dw.reshape(-1)
+        dw = dw.reshape(-1, 1)
         return dw, db
 
     def optimize(self, X, y, weights, bias, n_iterations, regularization=None,
@@ -196,7 +221,6 @@ class GradientDescent(BaseOptimizer):
         dw, db = gradients
         weights -= self.learning_rate * dw
         bias -= self.learning_rate * db
-        print(dw)
         return weights, bias
 
     def optimize(self, X, y, weights, bias, n_iterations, regularization=None,
@@ -224,7 +248,10 @@ class GradientDescent(BaseOptimizer):
 
             # In thông tin nếu verbose=True
             if verbose and i % 100 == 0:
+                y_pred = np.dot(X, weights) + bias
                 print(f"Iteration {i}: Cost = {cost:.6f}")
+                visualize_results(
+                    X, y, y_pred, title="Predictions vs. Actual Values")
 
             # Kiểm tra điều kiện dừng
             if abs(previous_cost - cost) < tol:
@@ -263,13 +290,13 @@ class StochasticGradientDescent(BaseOptimizer):
         return weights, bias
 
     def optimize(self, X: np.ndarray, y: np.ndarray, weights: np.ndarray, bias: float,
-             n_epochs: int, # Renamed from n_iterations for clarity in SGD/MiniBatch
-             regularization,
-             lambda_param: float,
-             tol: float,
-             n_iter_no_change, # Renamed from max_iter for clarity
-             verbose: bool = False
-             ) -> tuple[np.ndarray, float, list[float], list[int]]:
+                 n_epochs: int,  # Renamed from n_iterations for clarity in SGD/MiniBatch
+                 regularization,
+                 lambda_param: float,
+                 tol: float,
+                 n_iter_no_change,  # Renamed from max_iter for clarity
+                 verbose: bool = False
+                 ) -> tuple[np.ndarray, float, list[float], list[int]]:
         """
         Perform optimization using Stochastic Gradient Descent (SGD).
 
@@ -308,7 +335,7 @@ class StochasticGradientDescent(BaseOptimizer):
         iterations: List[int] = []
         previous_cost: float = float('inf')
         no_improvement_count: int = 0
-        m: int = X.shape[0] # Number of samples
+        m: int = X.shape[0]  # Number of samples
 
         for epoch in range(n_epochs):
             # Shuffle data at the beginning of each epoch
@@ -319,43 +346,46 @@ class StochasticGradientDescent(BaseOptimizer):
             # Iterate through each sample
             for j in range(m):
                 # Get a single sample
-                X_sample = X_shuffled[j:j+1, :] # Ensure it's 2D: (1, n_features)
-                y_sample = y_shuffled[j:j+1, :] # Ensure it's 2D: (1, 1)
+                # Ensure it's 2D: (1, n_features)
+                X_sample = X_shuffled[j:j+1, :]
+                y_sample = y_shuffled[j:j+1, :]  # Ensure it's 2D: (1, 1)
 
                 # Compute gradients for the single sample
                 gradients = self.compute_gradients(X_sample, y_sample, weights, bias,
-                                                regularization, lambda_param)
+                                                   regularization, lambda_param)
 
                 # Update parameters
                 weights, bias = self.update(weights, bias, gradients)
 
             # Calculate cost on the *entire* dataset after each epoch for monitoring
             # Note: This can be slow for very large datasets. Consider calculating less frequently.
-            current_cost = compute_cost(X, y, weights, bias, regularization, lambda_param)
+            current_cost = compute_cost(
+                X, y, weights, bias, regularization, lambda_param)
             costs.append(current_cost)
             iterations.append(epoch)
 
             # Print progress
-            if verbose and epoch % 10 == 0: # Print every 10 epochs
+            if verbose and epoch % 10 == 0:  # Print every 10 epochs
                 print(f"Epoch {epoch}: Cost = {current_cost:.6f}")
 
             # Check convergence tolerance
             if abs(previous_cost - current_cost) < tol:
                 if verbose:
-                    print(f"\nConvergence tolerance reached after {epoch} epochs.")
+                    print(
+                        f"\nConvergence tolerance reached after {epoch} epochs.")
                 break
 
             # Check for early stopping based on lack of improvement
             if n_iter_no_change is not None:
-                if current_cost >= previous_cost - tol: # Allow for tolerance in stagnation check
+                if current_cost >= previous_cost - tol:  # Allow for tolerance in stagnation check
                     no_improvement_count += 1
                 else:
-                    no_improvement_count = 0 # Reset counter
+                    no_improvement_count = 0  # Reset counter
 
                 if no_improvement_count >= n_iter_no_change:
                     if verbose:
                         print(f"\nEarly stopping triggered after {epoch} epochs "
-                            f"due to no improvement for {n_iter_no_change} consecutive epochs.")
+                              f"due to no improvement for {n_iter_no_change} consecutive epochs.")
                     break
 
             previous_cost = current_cost
