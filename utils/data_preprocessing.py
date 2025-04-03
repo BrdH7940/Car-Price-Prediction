@@ -21,17 +21,17 @@ def train_test_split(X, y, train_size, random_seed=None):
 
     # Shuffle indices
     indices = np.arange(n_samples)
-    np.random.Generator.shuffle(indices)
+    np.random.shuffle(indices)
 
     # Split data
-    n_samples_train = n_samples * train_size
+    n_samples_train = int(n_samples * train_size)
     train_indices = indices[:n_samples_train]
     test_indices = indices[n_samples_train:]
 
-    X_train = X[train_indices]
-    y_train = y[train_indices]
-    X_test = X[test_indices]
-    y_test = X[test_indices]
+    X_train = X.iloc[train_indices].to_numpy()
+    y_train = y.iloc[train_indices].to_numpy()
+    X_test = X.iloc[test_indices].to_numpy()
+    y_test = y.iloc[test_indices].to_numpy()
 
     return X_train, y_train, X_test, y_test
 

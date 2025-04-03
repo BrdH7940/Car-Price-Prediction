@@ -62,7 +62,7 @@ class BaseOptimizer:
             Bias khởi tạo
         """
         weights = np.random.randn(n_features) * 0.01
-        bias = 1
+        bias = 0
         return weights, bias
 
     def update(self, weights, bias, gradients):
@@ -262,65 +262,103 @@ class StochasticGradientDescent(BaseOptimizer):
         bias -= self.learning_rate * db
         return weights, bias
 
-    def optimize(self, X, y, weights, bias, n_iterations, regularization=None,
-                 lambda_param=0, tol=1e-6, max_iter=None, verbose=False):
+    def optimize(self, X: np.ndarray, y: np.ndarray, weights: np.ndarray, bias: float,
+             n_epochs: int, # Renamed from n_iterations for clarity in SGD/MiniBatch
+             regularization,
+             lambda_param: float,
+             tol: float,
+             n_iter_no_change, # Renamed from max_iter for clarity
+             verbose: bool = False
+             ) -> tuple[np.ndarray, float, list[float], list[int]]:
         """
-        Thực hiện quá trình tối ưu với Stochastic Gradient Descent
-        """
-        costs = []
-        iterations = []
-        previous_cost = float('inf')
-        no_improvement_count = 0
-        m = X.shape[0]
+        Perform optimization using Stochastic Gradient Descent (SGD).
 
-        for i in range(n_iterations):
-            # Shuffle data
+        Parameters:
+        -----------
+        X : np.ndarray
+            Input features, shape (n_samples, n_features).
+        y : np.ndarray
+            Target values, shape (n_samples, 1).
+        weights : np.ndarray
+            Initial weights, shape (n_features,).
+        bias : float
+            Initial bias.
+        n_epochs : int
+            Maximum number of epochs (passes through the entire dataset).
+        regularization : Optional[str], optional ('l1', 'l2', None)
+            Regularization type.
+        lambda_param : float, optional (default=0.0)
+            Regularization strength.
+        tol : float, optional (default=1e-6)
+            Tolerance for stopping criterion (change in cost).
+        n_iter_no_change : Optional[int], optional (default=None)
+            Number of epochs with no improvement to wait before early stopping.
+        verbose : bool, optional (default=False)
+            If True, prints progress information.
+
+        Returns:
+        --------
+        Tuple[np.ndarray, float, List[float], List[int]]
+            - Optimized weights.
+            - Optimized bias.
+            - List of cost values per epoch.
+            - List of epoch numbers corresponding to costs.
+        """
+        costs: List[float] = []
+        iterations: List[int] = []
+        previous_cost: float = float('inf')
+        no_improvement_count: int = 0
+        m: int = X.shape[0] # Number of samples
+
+        for epoch in range(n_epochs):
+            # Shuffle data at the beginning of each epoch
             indices = np.random.permutation(m)
             X_shuffled = X[indices]
             y_shuffled = y[indices]
 
-            # Tiến hành SGD
+            # Iterate through each sample
             for j in range(m):
-                # Lấy một mẫu
-                X_sample = X_shuffled[j:j+1]
-                y_sample = y_shuffled[j:j+1]
+                # Get a single sample
+                X_sample = X_shuffled[j:j+1, :] # Ensure it's 2D: (1, n_features)
+                y_sample = y_shuffled[j:j+1, :] # Ensure it's 2D: (1, 1)
 
-                # Tính gradients
+                # Compute gradients for the single sample
                 gradients = self.compute_gradients(X_sample, y_sample, weights, bias,
-                                                   regularization, lambda_param)
+                                                regularization, lambda_param)
 
-                # Cập nhật tham số
+                # Update parameters
                 weights, bias = self.update(weights, bias, gradients)
 
-            # Tính cost và lưu vào history (trên toàn bộ dữ liệu)
-            cost = compute_cost(X, y, weights, bias)
-            costs.append(cost)
-            iterations.append(i)
+            # Calculate cost on the *entire* dataset after each epoch for monitoring
+            # Note: This can be slow for very large datasets. Consider calculating less frequently.
+            current_cost = compute_cost(X, y, weights, bias, regularization, lambda_param)
+            costs.append(current_cost)
+            iterations.append(epoch)
 
-            # In thông tin nếu verbose=True
-            if verbose and i % 10 == 0:
-                print(f"Epoch {i}: Cost = {cost:.6f}")
+            # Print progress
+            if verbose and epoch % 10 == 0: # Print every 10 epochs
+                print(f"Epoch {epoch}: Cost = {current_cost:.6f}")
 
-            # Kiểm tra điều kiện dừng
-            if abs(previous_cost - cost) < tol:
+            # Check convergence tolerance
+            if abs(previous_cost - current_cost) < tol:
                 if verbose:
-                    print(f"Converged after {i} epochs")
+                    print(f"\nConvergence tolerance reached after {epoch} epochs.")
                 break
 
-            # Kiểm tra cải thiện
-            if cost >= previous_cost:
-                no_improvement_count += 1
-            else:
-                no_improvement_count = 0
+            # Check for early stopping based on lack of improvement
+            if n_iter_no_change is not None:
+                if current_cost >= previous_cost - tol: # Allow for tolerance in stagnation check
+                    no_improvement_count += 1
+                else:
+                    no_improvement_count = 0 # Reset counter
 
-            # Dừng nếu không có cải thiện sau một số lần lặp
-            if max_iter and no_improvement_count >= max_iter:
-                if verbose:
-                    print(
-                        f"Early stopping after {i} epochs without improvement")
-                break
+                if no_improvement_count >= n_iter_no_change:
+                    if verbose:
+                        print(f"\nEarly stopping triggered after {epoch} epochs "
+                            f"due to no improvement for {n_iter_no_change} consecutive epochs.")
+                    break
 
-            previous_cost = cost
+            previous_cost = current_cost
 
         return weights, bias, costs, iterations
 

@@ -64,46 +64,67 @@ class LinearRegression():
         self.cost_history = []
         self.iteration_history = []
 
-    def fit(self, X, y, verbose=False):
+    def fit(self, X: np.ndarray, y: np.ndarray, verbose: bool = False) -> 'LinearRegression':
         """
-        Huấn luyện mô hình Linear Regression
+        Train (fit) the Linear Regression model to the training data.
 
         Parameters:
         -----------
-        X : numpy.ndarray
-            Dữ liệu đầu vào
-        y : numpy.ndarray
-            Giá trị mục tiêu
-        verbose : bool
-            In thông tin chi tiết trong quá trình huấn luyện
+        X : np.ndarray
+            Input features (training data), shape (n_samples, n_features).
+        y : np.ndarray
+            Target values (training labels), shape (n_samples,) or (n_samples, 1).
+        verbose : bool, optional (default=False)
+            If True, prints progress information during optimization.
 
         Returns:
         --------
-        self : object
-            Returns self.
+        self : LinearRegression
+            The fitted model instance.
+
+        Raises:
+        -------
+        ValueError:
+            If input shapes are incompatible.
         """
-        # Chuyển đổi dữ liệu thành numpy array nếu cần
-        X = np.array(X)
-        y = np.array(y)
+        # Ensure data are numpy arrays
+        X = np.asarray(X)
+        y = np.asarray(y)
 
-        # Kiểm tra shape
-        if len(X.shape) == 1:
+        # Input validation and reshaping
+        if X.ndim == 1:
             X = X.reshape(-1, 1)
-        if len(y.shape) == 1:
-            y = y.reshape(-1, 1)
+        if y.ndim == 1:
+            y = y.reshape(-1, 1) # Ensure y is a column vector
 
-        # Khởi tạo parameters
-        n_features = X.shape[1]
+        n_samples, n_features = X.shape
+        if n_samples != y.shape[0]:
+            raise ValueError(f"Incompatible shapes: X has {n_samples} samples, "
+                            f"but y has {y.shape[0]} samples.")
+        if y.shape[1] != 1:
+            # Ensure y is a column vector after potential reshaping
+            if y.ndim == 2 and y.shape[1] > 1:
+                raise ValueError(f"Target y should be a column vector, but got shape {y.shape}")
+            # If y was originally 1D, the earlier reshape handled it.
+            # If y was somehow passed as (1, n_samples), we might need error handling or transpose.
+            # Assuming standard (n_samples,) or (n_samples, 1) input is expected.
+
+
+        # Initialize parameters using the optimizer's method
         self.weights, self.bias = self.optimizer.initialize(n_features)
 
-        # Huấn luyện với optimizer
-        self.weights, self.bias, self.cost_history, self.iteration_history = self.optimizer.optimize(
-            X, y, self.weights, self.bias, self.n_iterations,
-            self.regularization, self.lambda_param,
-            self.tol, self.max_iter, verbose
-        )
+        # Perform optimization
+        # Type hint for optimizer expected return value (if possible)
+        optim_result: tuple[np.ndarray, float, list[float], list[int]] = \
+            self.optimizer.optimize(
+                X, y, self.weights, self.bias, self.n_iterations,
+                self.regularization, self.lambda_param,
+                self.tol, self.max_iter, verbose
+            )
 
-        self.is_fitted = True
+        self.weights, self.bias, self.cost_history, self.iteration_history = optim_result
+
+        self.is_fitted = True  # Mark model as fitted
         return self
 
     def predict(self, X):
