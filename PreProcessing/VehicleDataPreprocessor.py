@@ -47,7 +47,7 @@ class VehicleDataPreprocessor:
         self.price_outlier_threshold = 17586000.00
         
 
-    def preprocess(self, df, train=False):
+    def preprocess(self, df, train=False, norm=True):
         """Pipeline tiền xử lý chính gọi tất cả các phương thức tiền xử lý riêng lẻ"""
         df = df.copy()  # Không sửa đổi dataframe gốc
 
@@ -70,7 +70,7 @@ class VehicleDataPreprocessor:
         df = self._process_seating_capacity(df)
         df = self._process_remaining_numeric_cols(df)
         df = self._process_final_stage(df)
-        df = self._normalize_data(df)
+        if norm: df = self._normalize_data(df)
 
         return df
 

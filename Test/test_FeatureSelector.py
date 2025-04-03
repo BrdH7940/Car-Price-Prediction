@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 if __name__ == "__main__":
     df = pd.read_csv("../Data/train.csv")
     processor = VehicleDataPreprocessor()
-    df = processor.preprocess(df, train=True)
+    df = processor.preprocess(df, train=True, norm=False)
     # featSelector = FeatureSelector(pre_process_df=df)
     # selected_features, df = featSelector.get_df(model_id=4)
 
