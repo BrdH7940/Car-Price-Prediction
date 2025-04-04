@@ -41,13 +41,13 @@ if __name__ == "__main__":
     y = df["Log_Price"]
     X = df.drop("Log_Price", axis=1)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=43)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=20)
 
     X_train = FeatureSelector._non_linearize_features(X_train)
     X_test = FeatureSelector._non_linearize_features(X_test)
 
-    _, X_train = FeatureSelector.get_df(X_train, model_id=1, get_Log_Price=False)
-    _, X_test = FeatureSelector.get_df(X_test, model_id=1, get_Log_Price=False)
+    feats, X_train = FeatureSelector.get_df(X_train, model_id=0, get_Log_Price=False)
+    _, X_test = FeatureSelector.get_df(X_test, model_id=0, get_Log_Price=False)
 
     X_train, X_test, y_train, y_test = X_train.to_numpy(), X_test.to_numpy(), y_train.to_numpy().flatten(), y_test.to_numpy().flatten()
 
@@ -60,25 +60,37 @@ if __name__ == "__main__":
     # Huấn luyện với normal equation
     print("\n=== Huấn luyện bằng Normal Equation ===")
     model1 = LinearRegression(optimizer='normal_equation')
-    model1.fit(X_train, y_train, verbose=True)
+    model1.fit(X_train, y_train, verbose=False)
     model1.evaluate(X_test, y_test)
+    # for feat, weight in zip(["Intercept"] + feats, model1.weights):
+    #     print(f"{feat}: {weight:.8f}")
+    y_hehe = model1.predict(X_test)
+    print(sorted(np.abs(np.exp(y_test) - np.exp(y_hehe)), reverse=True)[:20])
+    print(np.abs(np.exp(y_test) - np.exp(y_hehe)))
 
-    # Huấn luyện với gradient descent
-    print("\n=== Huấn luyện bằng Gradient Descent ===")
-    model2 = LinearRegression(optimizer='gradient_descent', learning_rate=0.01, max_iter=1000)
-    model2.fit(X_train, y_train, verbose=True)
-    model2.evaluate(X_test, y_test)
+    plt.hist(np.abs(np.exp(y_test) - np.exp(y_hehe)), bins=200)
+    plt.show()
 
-    # Huấn luyện với stochastic gradient descent
-    print("\n=== Huấn luyện bằng Stochastic Gradient Descent ===")
-    model3 = LinearRegression(optimizer='sgd', learning_rate=0.01, max_iter=10000, batch_size=16)
-    model3.fit(X_train, y_train, verbose=True)
-    model3.evaluate(X_test, y_test)
+    plt.hist(((y_test) - (y_hehe)), bins=200)
+    plt.show()
 
-    # Huấn luyện với Adam
-    print("\n=== Huấn luyện bằng Adam ===")
-    model4 = LinearRegression(optimizer='adam', learning_rate=0.01, max_iter=500000, tol=1e-34)
-    model4.fit(X_train, y_train, verbose=True)
-    model4.evaluate(X_test, y_test)
-    print(model4.weights)
+    # # Huấn luyện với gradient descent
+    # print("\n=== Huấn luyện bằng Gradient Descent ===")
+    # model2 = LinearRegression(optimizer='gradient_descent', learning_rate=0.01, max_iter=10000)
+    # model2.fit(X_train, y_train, verbose=False)
+    # model2.evaluate(X_test, y_test)
+    #
+    # # Huấn luyện với stochastic gradient descent
+    # print("\n=== Huấn luyện bằng Stochastic Gradient Descent ===")
+    # model3 = LinearRegression(optimizer='sgd', learning_rate=0.01, max_iter=10000, batch_size=16)
+    # model3.fit(X_train, y_train, verbose=False)
+    # model3.evaluate(X_test, y_test)
+    #
+    # # Huấn luyện với Adam
+    # print("\n=== Huấn luyện bằng Adam ===")
+    # model4 = LinearRegression(optimizer='adam', learning_rate=0.01, max_iter=15000, tol=1e-10)
+    # model4.fit(X_train, y_train, verbose=False)
+    # model4.evaluate(X_test, y_test)
+    # for feat, weight in zip(["Intercept"] + feats, model4.weights):
+    #     print(f"{feat}: {weight:.8f}")
 

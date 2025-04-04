@@ -6,13 +6,13 @@ import numpy as np
 
 def compute_cost(X, y, weights, bias, regularization=None, lambda_param=0):
     m = X.shape[0]
+    print(f"X: {X}")
+    print(f"W: {weights}")
     y_pred = np.dot(X, weights) + bias
+    print(y_pred[0])
+    print(y[0])
     cost = (1/(2*m)) * \
         np.sum((y_pred.reshape((-1, 1)) - y.reshape((-1, 1)))**2)
-    print(y_pred.shape)
-    print(y.shape)
-    print((y_pred - y).shape)
-
     # Thêm regularization nếu có
     if regularization == 'l2':  # Ridge
         cost += (lambda_param/(2*m)) * np.sum(weights**2)
@@ -62,7 +62,7 @@ class BaseOptimizer:
             Bias khởi tạo
         """
         weights = np.random.randn(n_features) * 0.01
-        bias = 1
+        bias = 0
         return weights, bias
 
     def update(self, weights, bias, gradients):
@@ -196,7 +196,7 @@ class GradientDescent(BaseOptimizer):
         dw, db = gradients
         weights -= self.learning_rate * dw
         bias -= self.learning_rate * db
-        print(dw)
+        # print(dw)
         return weights, bias
 
     def optimize(self, X, y, weights, bias, n_iterations, regularization=None,
@@ -263,7 +263,7 @@ class StochasticGradientDescent(BaseOptimizer):
         return weights, bias
 
     def optimize(self, X, y, weights, bias, n_iterations, regularization=None,
-                 lambda_param=0, tol=1e-6, max_iter=None, verbose=False):
+                 lambda_param=0, tol=1e-6, max_iter=None, verbose=True):
         """
         Thực hiện quá trình tối ưu với Stochastic Gradient Descent
         """

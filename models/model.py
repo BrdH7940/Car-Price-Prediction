@@ -1,6 +1,6 @@
 # models/linear_regression.py
 import numpy as np
-from .optimizer import *
+from models.optimizer import *
 from utils.visualization import plot_learning_curve
 
 
@@ -95,6 +95,7 @@ class LinearRegression():
         # Khởi tạo parameters
         n_features = X.shape[1]
         self.weights, self.bias = self.optimizer.initialize(n_features)
+        print("Initial weights:", self.weights)
 
         # Huấn luyện với optimizer
         self.weights, self.bias, self.cost_history, self.iteration_history = self.optimizer.optimize(
