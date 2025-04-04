@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from LinearModel.LinearModel import StandardScaler
 from models.model import LinearRegression
 from sklearn.model_selection import train_test_split
+from utils.visualization import *
 
 
 def visualize_results(X_test, y_test, y_pred, title="Predictions vs. Actual Values"):
@@ -34,7 +35,7 @@ def visualize_results(X_test, y_test, y_pred, title="Predictions vs. Actual Valu
 
 
 if __name__ == "__main__":
-    df = pd.read_csv("Data/train.csv")
+    df = pd.read_csv("Data/Final_Train.csv")
     processor = VehicleDataPreprocessor()
     df = processor.preprocess(df, train=True, norm=False)
     # featSelector = FeatureSelector(pre_process_df=df)
@@ -45,7 +46,7 @@ if __name__ == "__main__":
     X = df.drop("Log_Price", axis=1)
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.1, random_state=43)
+        X, y, test_size=0.2, random_state=43)
 
     X_train = FeatureSelector._non_linearize_features(X_train)
     X_test = FeatureSelector._non_linearize_features(X_test)
@@ -68,24 +69,35 @@ if __name__ == "__main__":
     model1 = LinearRegression(optimizer='normal_equation')
     model1.fit(X_train, y_train, verbose=True)
     model1.evaluate(X_test, y_test)
+    y_pred = model1.predict(X_train)
     mean_score, _ = model1.cross_validate(X_train, y_train)
     print("Mean score of cross validation:", mean_score)
 
+    visualize_results(X_train, y_train, y_pred)
+
     # # Huấn luyện với gradient descent
     # print("\n=== Huấn luyện bằng Gradient Descent ===")
-    # model2 = LinearRegression(optimizer='gradient_descent', learning_rate=0.01, max_iter=1000)
+    # model2 = LinearRegression(optimizer='gradient_descent', learning_rate=0.001, max_iter=1000)
     # model2.fit(X_train, y_train, verbose=True)
     # model2.evaluate(X_test, y_test)
+    # y_pred = model2.predict(X_train)
+
+    # visualize_results(X_train, y_train, y_pred)
 
     # # Huấn luyện với stochastic gradient descent
     # print("\n=== Huấn luyện bằng Stochastic Gradient Descent ===")
-    # model3 = LinearRegression(optimizer='sgd', learning_rate=0.01, max_iter=10000, batch_size=16)
+    # model3 = LinearRegression(optimizer='sgd', learning_rate=0.001, max_iter=1000, batch_size=16)
     # model3.fit(X_train, y_train, verbose=True)
     # model3.evaluate(X_test, y_test)
+    # y_pred = model3.predict(X_train)
+
+    # visualize_results(X_train, y_train, y_pred)
 
     # # Huấn luyện với Adam
     # print("\n=== Huấn luyện bằng Adam ===")
-    # model4 = LinearRegression(optimizer='adam', learning_rate=0.01, max_iter=500000, tol=1e-34)
+    # model4 = LinearRegression(optimizer='adam', learning_rate=0.1, n_iterations=1000, tol=1e-34)
     # model4.fit(X_train, y_train, verbose=True)
     # model4.evaluate(X_test, y_test)
-    # print(model4.weights)
+
+    # y_pred = model4.predict(X_train)
+    # visualize_results(X_train, y_train, y_pred)

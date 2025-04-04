@@ -6,7 +6,7 @@ from utils.visualization import plot_learning_curve
 
 class LinearRegression():
     def __init__(self, optimizer='gradient_descent', learning_rate=1e-8,
-                 n_iterations=1000, regularization=None, lambda_param=0.1,
+                 n_iterations=1000, regularization="l2", lambda_param=0.1,
                  batch_size=None, random_state=None, tol=1e-6, max_iter=None):
         """
         Khởi tạo mô hình Linear Regression
@@ -52,6 +52,8 @@ class LinearRegression():
                     learning_rate, batch_size, random_state)
             elif optimizer == 'normal_equation':
                 self.optimizer = NormalEquation(random_state=random_state)
+            elif optimizer == 'adam':
+                self.optimizer = AdamOptimizer(learning_rate=learning_rate, beta1=0.9, beta2=0.999, epsilon=1e-8, random_state=random_state)
             else:
                 raise ValueError(
                     "Unknown optimizer. Use 'gradient_descent', 'sgd', 'mini_batch_gd', or 'normal_equation'.")
@@ -187,6 +189,61 @@ class LinearRegression():
 
         plot_learning_curve(self.iteration_history, self.cost_history,
                             title=f'Learning Curve - {self.method}')
+        
+    def score(self, X, y):
+        """
+        Calculate the Coefficient of Determination (R^2) score for the model.
+
+        Parameters:
+        -----------
+        X : numpy.ndarray, shape (n_samples, n_features)
+            Test samples. Features should match the training data.
+        y : numpy.ndarray, shape (n_samples,)
+            True target values corresponding to X.
+
+        Returns:
+        --------
+        score : float
+            The R^2 score. Ranges from 1 (perfect fit) down to negative values.
+            A score of 0 means the model performs no better than predicting the mean.
+        """
+        # Ensure y is a numpy array
+        y = np.array(y)
+        if y.ndim != 1:
+             y = y.squeeze() # Ensure y is 1D
+             if y.ndim != 1:
+                 raise ValueError("Target y must be a 1D array or squeezable to 1D.")
+
+        # 1. Get predictions for the input X using the trained model
+        y_pred = self.predict(X) # Uses the predict method defined above
+
+        # Ensure y_pred is also 1D for calculations
+        y_pred = y_pred.squeeze()
+
+        # Check if shapes match after prediction and squeezing
+        if y.shape != y_pred.shape:
+             raise ValueError(f"Shape mismatch between true y ({y.shape}) and predicted y ({y_pred.shape}) after prediction.")
+
+
+        # 2. Calculate the R^2 score
+        # Sum of squared residuals (errors)
+        ss_res = np.sum((y - y_pred) ** 2)
+
+        # Total sum of squares (variance in y)
+        ss_tot = np.sum((y - np.mean(y)) ** 2)
+
+        # 3. Handle the edge case where ss_tot is zero (y is constant)
+        if ss_tot == 0:
+            # If ss_res is also ~0, it means y_pred perfectly predicted the constant y
+            # Otherwise, R^2 is undefined. Conventionally return 0 or 1.
+            # Scikit-learn returns 1.0 if ss_res is also near zero, else 0.0.
+            # Let's follow that convention:
+            return 1.0 if np.isclose(ss_res, 0) else 0.0
+
+        # 4. Calculate R^2
+        r2_score = 1 - (ss_res / ss_tot)
+
+        return r2_score
 
     def cross_validate(self, X, y, k_folds=5, random_state=None):
         """
