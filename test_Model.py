@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from LinearModel.LinearModel import StandardScaler
 from models.model import LinearRegression
-from utils.data_preprocessing import train_test_split
+from sklearn.model_selection import train_test_split
 
 
 def visualize_results(X_test, y_test, y_pred, title="Predictions vs. Actual Values"):
@@ -32,8 +32,9 @@ def visualize_results(X_test, y_test, y_pred, title="Predictions vs. Actual Valu
     plt.legend()
     plt.show()
 
+
 if __name__ == "__main__":
-    df = pd.read_csv("../Data/train.csv")
+    df = pd.read_csv("Data/train.csv")
     processor = VehicleDataPreprocessor()
     df = processor.preprocess(df, train=True, norm=False)
     # featSelector = FeatureSelector(pre_process_df=df)
@@ -53,7 +54,8 @@ if __name__ == "__main__":
         X_train, model_id=1, get_Log_Price=False)
     _, X_test = FeatureSelector.get_df(X_test, model_id=1, get_Log_Price=False)
 
-    X_train, X_test, y_train, y_test = X_train.to_numpy(), X_test.to_numpy(), y_train.to_numpy().flatten(), y_test.to_numpy().flatten()
+    X_train, X_test, y_train, y_test = X_train.to_numpy(), X_test.to_numpy(
+    ), y_train.to_numpy().flatten(), y_test.to_numpy().flatten()
 
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
