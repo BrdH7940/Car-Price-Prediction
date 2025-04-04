@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from LinearModel.LinearModel import StandardScaler
 from models.model import LinearRegression
-from utils.data_preprocessing import train_test_split
+from sklearn.model_selection import train_test_split
 
 
 def visualize_results(X_test, y_test, y_pred, title="Predictions vs. Actual Values"):
@@ -34,7 +34,7 @@ def visualize_results(X_test, y_test, y_pred, title="Predictions vs. Actual Valu
 
 
 if __name__ == "__main__":
-    df = pd.read_csv("../Data/train.csv")
+    df = pd.read_csv("Data/train.csv")
     processor = VehicleDataPreprocessor()
     df = processor.preprocess(df, train=True, norm=False)
     # featSelector = FeatureSelector(pre_process_df=df)

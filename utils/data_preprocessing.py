@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-def train_test_split(X, y, train_size, random_seed=None):
+def train_test_split1(X, y, train_size, random_state=None):
     """
         Para:
             X: features 
@@ -13,27 +13,87 @@ def train_test_split(X, y, train_size, random_seed=None):
             X_train, y_train, X_test, y_test: splited data with chosen size
     """
     # Initialize random seed
-    if random_seed is not None:
-        np.random.seed(random_seed)
+    if random_state is not None:
+        np.random.seed(random_state)
 
+    X = np.array(X)
+    y = np.array(y)
     # Size of data
     n_samples = X.shape[0]
 
     # Shuffle indices
     indices = np.arange(n_samples)
-    np.random.Generator.shuffle(indices)
-
+    np.random.shuffle(indices)
     # Split data
-    n_samples_train = n_samples * train_size
-    train_indices = indices[:n_samples_train]
-    test_indices = indices[n_samples_train:]
-
+    n_samples_train = int(n_samples * train_size)
+    train_indices = np.array(indices[:n_samples_train])
+    test_indices = np.array(indices[n_samples_train:])
     X_train = X[train_indices]
     y_train = y[train_indices]
     X_test = X[test_indices]
-    y_test = X[test_indices]
+    y_test = y[test_indices]
 
-    return X_train, y_train, X_test, y_test
+    return pd.DataFrame(X_train), pd.DataFrame(y_train), pd.DataFrame(X_test), pd.DataFrame(y_test)
+
+
+def train_test_split(X, y, test_size=0.2, random_state=None):
+    """
+    Split features (X) and target (y) DataFrames into training and testing sets.
+
+    Parameters:
+    -----------
+    X : pandas.DataFrame
+        The feature DataFrame
+    y : pandas.DataFrame or pandas.Series
+        The target DataFrame or Series
+    test_size : float, default=0.2
+        The proportion of the dataset to include in the test split (between 0.0 and 1.0)
+    random_state : int, default=None
+        Controls the shuffling applied to the data before applying the split
+        Pass an int for reproducible output
+
+    Returns:
+    --------
+    tuple
+        (X_train, X_test, y_train, y_test) where all are pandas DataFrames/Series
+    """
+    # Validate inputs
+    if not isinstance(X, pd.DataFrame):
+        raise TypeError("X must be a pandas DataFrame")
+
+    if not isinstance(y, (pd.DataFrame, pd.Series)):
+        raise TypeError("y must be a pandas DataFrame or Series")
+
+    if len(X) != len(y):
+        raise ValueError("X and y must have the same number of rows")
+
+    # Set random seed if specified
+    if random_state is not None:
+        np.random.seed(random_state)
+
+    # Get the number of rows
+    n = len(X)
+
+    # Calculate the number of test samples
+    n_test = int(n * test_size)
+
+    # Generate random indices for the test set
+    test_indices = np.random.choice(range(n), size=n_test, replace=False)
+
+    # Create boolean mask for test and train sets
+    is_test = np.zeros(n, dtype=bool)
+    is_test[test_indices] = True
+
+    # Split X - sử dụng iloc để lấy dữ liệu theo vị trí hàng
+    # Việc sử dụng .copy() và reset_index(drop=True) không ảnh hưởng đến tên cột
+    X_test = X.iloc[is_test].copy().reset_index(drop=True)
+    X_train = X.iloc[~is_test].copy().reset_index(drop=True)
+
+    # Split y - tương tự, tên cột được giữ nguyên
+    y_test = y.iloc[is_test].copy().reset_index(drop=True)
+    y_train = y.iloc[~is_test].copy().reset_index(drop=True)
+
+    return X_train, X_test, y_train, y_test
 
 
 class StandardScaler:
@@ -122,7 +182,6 @@ class PCA:
 
         # PCA component
         self.pca_component = eigenvectors[:, :n_components]
-        
 
     def transform(self, X):
         Z_pca = self.Z @ self.pca_component

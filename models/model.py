@@ -134,6 +134,41 @@ class LinearRegression():
         # Tính dự đoán
         return np.dot(X, self.weights) + self.bias
 
+    def evaluate(self, X, y):
+        """Đánh giá mô hình trên tập test"""
+        y_pred = self.predict(X)
+
+        # Mean Squared Error
+        mse = np.mean((y - y_pred) ** 2)
+
+        # Root Mean Squared Error
+        rmse = np.sqrt(mse)
+
+        # Mean Absolute Error
+        mae = np.mean(np.abs(y - y_pred))
+        maee = np.mean(np.abs(np.exp(y) - np.exp(y_pred)))
+
+
+        # R-squared
+        ss_total = np.sum((y - np.mean(y)) ** 2)
+        ss_residual = np.sum((y - y_pred) ** 2)
+        r2 = 1 - (ss_residual / ss_total)
+
+        metrics = {
+            'MSE': mse,
+            'RMSE': rmse,
+            'MAE': mae,
+            'R²': r2,
+            "MAE exp": maee
+        }
+
+        # In ra các metrix
+        print("Kết quả đánh giá:")
+        for metric, value in metrics.items():
+            print(f"{metric}: {value:.6f}")
+
+        return metrics
+
     def get_params(self):
         """Trả về parameters của mô hình"""
         return {
@@ -151,3 +186,111 @@ class LinearRegression():
 
         plot_learning_curve(self.iteration_history, self.cost_history,
                             title=f'Learning Curve - {self.method}')
+
+    def cross_validate(self, X, y, k_folds=5, random_state=None):
+        """
+        Thực hiện cross-validation để đánh giá mô hình
+        
+        Parameters:
+        -----------
+        X : numpy.ndarray
+            Dữ liệu đầu vào
+        y : numpy.ndarray
+            Giá trị mục tiêu
+        k_folds : int
+            Số lượng folds
+        random_state : int hoặc None
+            Seed cho random generator
+        
+        Returns:
+        --------
+        mean_score : float
+            Điểm trung bình qua các folds
+        scores : list
+            Danh sách điểm của từng fold
+        """
+        # Chuyển đổi dữ liệu thành numpy array nếu cần
+        X = np.array(X)
+        y = np.array(y)
+        
+        # Thiết lập random seed nếu cần
+        if random_state is not None:
+            np.random.seed(random_state)
+        
+        # Số lượng mẫu
+        n_samples = X.shape[0]
+        
+        # Tạo indices và shuffle
+        indices = np.arange(n_samples)
+        np.random.shuffle(indices)
+        
+        # Chia thành k_folds
+        fold_size = n_samples // k_folds
+        scores = []
+        
+        for i in range(k_folds):
+            # Xác định indices cho tập test
+            start = i * fold_size
+            end = start + fold_size if i < k_folds - 1 else n_samples
+            test_indices = indices[start:end]
+            train_indices = np.setdiff1d(indices, test_indices)
+            
+            # Chia dữ liệu
+            X_train = X[train_indices]
+            y_train = y[train_indices]
+            X_test = X[test_indices]
+            y_test = y[test_indices]
+            
+            # Tạo một bản sao của optimizer hiện tại với cùng tham số
+            if isinstance(self.optimizer, GradientDescent):
+                optimizer = GradientDescent(
+                    learning_rate=self.optimizer.learning_rate,
+                    random_state=random_state
+                )
+            elif isinstance(self.optimizer, StochasticGradientDescent):
+                optimizer = StochasticGradientDescent(
+                    learning_rate=self.optimizer.learning_rate,
+                    random_state=random_state
+                )
+            elif isinstance(self.optimizer, MiniBatchGradientDescent):
+                optimizer = MiniBatchGradientDescent(
+                    learning_rate=self.optimizer.learning_rate,
+                    batch_size=self.optimizer.batch_size,
+                    random_state=random_state
+                )
+            elif isinstance(self.optimizer, AdamOptimizer):
+                optimizer = AdamOptimizer(
+                    learning_rate=self.optimizer.learning_rate,
+                    beta1=self.optimizer.beta1,
+                    beta2=self.optimizer.beta2,
+                    epsilon=self.optimizer.epsilon,
+                    random_state=random_state
+                )
+            elif isinstance(self.optimizer, NormalEquation):
+                optimizer = NormalEquation(
+                    random_state=random_state
+                )
+            else:
+                # Nếu là optimizer không xác định, sử dụng GradientDescent mặc định
+                optimizer = GradientDescent(
+                    learning_rate=0.01,
+                    random_state=random_state
+                )
+            
+            # Huấn luyện mô hình với optimizer mới
+            model = LinearRegression(
+                optimizer=optimizer,
+                n_iterations=self.n_iterations,
+                regularization=self.regularization,
+                lambda_param=self.lambda_param,
+                random_state=random_state,
+                tol=self.tol,
+                max_iter=self.max_iter
+            )
+            model.fit(X_train, y_train)
+            
+            # Tính điểm
+            score = model.score(X_test, y_test)
+            scores.append(score)
+        
+        return np.mean(scores), scores
