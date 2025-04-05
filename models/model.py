@@ -95,7 +95,9 @@ class LinearRegression():
         # Khởi tạo parameters
         n_features = X.shape[1]
         self.weights, self.bias = self.optimizer.initialize(n_features)
-        print("Initial weights:", self.weights)
+        # print("Initial weights:", self.weights)
+        # print("Initial bias:", self.bias)
+        print("Initial weights:", self.weights.shape)
 
         # Huấn luyện với optimizer
         self.weights, self.bias, self.cost_history, self.iteration_history = self.optimizer.optimize(
@@ -188,10 +190,10 @@ class LinearRegression():
         plot_learning_curve(self.iteration_history, self.cost_history,
                             title=f'Learning Curve - {self.method}')
 
-    def cross_validate(self, X, y, k_folds=5, random_state=None):
+    def cross_validate(self, X, y, k_folds=5, metric='R²', random_state=None):
         """
         Thực hiện cross-validation để đánh giá mô hình
-        
+
         Parameters:
         -----------
         X : numpy.ndarray
@@ -200,9 +202,11 @@ class LinearRegression():
             Giá trị mục tiêu
         k_folds : int
             Số lượng folds
+        metric : str
+            Metric đánh giá ('MSE', 'RMSE', 'MAE', 'R²', 'MAE exp')
         random_state : int hoặc None
             Seed cho random generator
-        
+
         Returns:
         --------
         mean_score : float
@@ -213,35 +217,41 @@ class LinearRegression():
         # Chuyển đổi dữ liệu thành numpy array nếu cần
         X = np.array(X)
         y = np.array(y)
-        
+
+        # Kiểm tra shape
+        if len(X.shape) == 1:
+            X = X.reshape(-1, 1)
+        if len(y.shape) == 1:
+            y = y.reshape(-1, 1)
+
         # Thiết lập random seed nếu cần
         if random_state is not None:
             np.random.seed(random_state)
-        
+
         # Số lượng mẫu
         n_samples = X.shape[0]
-        
+
         # Tạo indices và shuffle
         indices = np.arange(n_samples)
         np.random.shuffle(indices)
-        
+
         # Chia thành k_folds
         fold_size = n_samples // k_folds
         scores = []
-        
+
         for i in range(k_folds):
             # Xác định indices cho tập test
             start = i * fold_size
             end = start + fold_size if i < k_folds - 1 else n_samples
             test_indices = indices[start:end]
             train_indices = np.setdiff1d(indices, test_indices)
-            
+
             # Chia dữ liệu
             X_train = X[train_indices]
             y_train = y[train_indices]
             X_test = X[test_indices]
             y_test = y[test_indices]
-            
+
             # Tạo một bản sao của optimizer hiện tại với cùng tham số
             if isinstance(self.optimizer, GradientDescent):
                 optimizer = GradientDescent(
@@ -259,25 +269,14 @@ class LinearRegression():
                     batch_size=self.optimizer.batch_size,
                     random_state=random_state
                 )
-            elif isinstance(self.optimizer, AdamOptimizer):
-                optimizer = AdamOptimizer(
-                    learning_rate=self.optimizer.learning_rate,
-                    beta1=self.optimizer.beta1,
-                    beta2=self.optimizer.beta2,
-                    epsilon=self.optimizer.epsilon,
-                    random_state=random_state
-                )
             elif isinstance(self.optimizer, NormalEquation):
                 optimizer = NormalEquation(
                     random_state=random_state
                 )
             else:
-                # Nếu là optimizer không xác định, sử dụng GradientDescent mặc định
-                optimizer = GradientDescent(
-                    learning_rate=0.01,
-                    random_state=random_state
-                )
-            
+                # Nếu là optimizer không xác định, sử dụng optimizer hiện tại
+                optimizer = self.optimizer
+
             # Huấn luyện mô hình với optimizer mới
             model = LinearRegression(
                 optimizer=optimizer,
@@ -289,9 +288,17 @@ class LinearRegression():
                 max_iter=self.max_iter
             )
             model.fit(X_train, y_train)
-            
-            # Tính điểm
-            score = model.score(X_test, y_test)
+
+            # Tính điểm bằng hàm evaluate
+            metrics = model.evaluate(X_test, y_test)
+
+            # Lấy metric được chỉ định
+            if metric in metrics:
+                score = metrics[metric]
+            else:
+                raise ValueError(
+                    f"Metric '{metric}' không tồn tại. Sử dụng một trong các metric: 'MSE', 'RMSE', 'MAE', 'R²', 'MAE exp'")
+
             scores.append(score)
-        
+
         return np.mean(scores), scores
