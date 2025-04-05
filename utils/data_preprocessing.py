@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-
 def train_test_split1(X, y, train_size, random_state=None):
     """
         Para:

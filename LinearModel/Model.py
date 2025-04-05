@@ -1,8 +1,6 @@
-# models/linear_regression.py
 import numpy as np
-from models.optimizer import *
+from LinearModel.optimizer import *
 from utils.visualization import plot_learning_curve
-
 
 class LinearRegression():
     def __init__(self, optimizer='gradient_descent', learning_rate=1e-8,

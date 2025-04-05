@@ -3,8 +3,8 @@ from PreProcessing.FeatureSelector import FeatureSelector
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from LinearModel.LinearModel import StandardScaler
-from models.model import LinearRegression
+from LinearModel.Scaler import StandardScaler
+from LinearModel.model import LinearRegression
 from utils.data_preprocessing import train_test_split
 
 

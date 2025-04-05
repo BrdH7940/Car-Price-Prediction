@@ -3,10 +3,10 @@ from PreProcessing.FeatureSelector import FeatureSelector
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from LinearModel.LinearModel import StandardScaler
-from models.model import LinearRegression
+from LinearModel.Scaler import StandardScaler
+from LinearModel.Model import LinearRegression
 from sklearn.model_selection import train_test_split
-from utils.visualization import *
+from Utils.Visualization import *
 
 
 def visualize_results(X_test, y_test, y_pred, title="Predictions vs. Actual Values"):

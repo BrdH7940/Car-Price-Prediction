@@ -1,9 +1,6 @@
-# utils/optimizers.py
 import numpy as np
 
 # Hàm tính cost
-
-
 def compute_cost(X, y, weights, bias, regularization=None, lambda_param=0):
     m = X.shape[0]
     print(f"X: {X}")
@@ -20,7 +17,6 @@ def compute_cost(X, y, weights, bias, regularization=None, lambda_param=0):
         cost += (lambda_param/m) * np.sum(np.abs(weights))
 
     return cost
-
 
 class BaseOptimizer:
     """
