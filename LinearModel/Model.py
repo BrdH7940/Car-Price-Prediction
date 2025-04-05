@@ -1,10 +1,11 @@
 import numpy as np
-from LinearModel.optimizer import *
-from utils.visualization import plot_learning_curve
+from LinearModel.Optimizer import *
+from Utils.Visualization import plot_learning_curve
+from Utils.Metrics import *
 
 class LinearRegression():
     def __init__(self, optimizer='gradient_descent', learning_rate=1e-8,
-                 n_iterations=1000, regularization="l2", lambda_param=0.1,
+                 n_iterations=1000, regularization=None, lambda_param=0.01,
                  batch_size=None, random_state=None, tol=1e-6, max_iter=None):
         """
         Khởi tạo mô hình Linear Regression
@@ -43,18 +44,17 @@ class LinearRegression():
             if optimizer == 'gradient_descent':
                 self.optimizer = GradientDescent(learning_rate, random_state)
             elif optimizer == 'sgd':
-                self.optimizer = StochasticGradientDescent(
-                    learning_rate, random_state)
+                self.optimizer = StochasticGradientDescent(learning_rate, random_state)
             elif optimizer == 'mini_batch_gd':
-                self.optimizer = MiniBatchGradientDescent(
-                    learning_rate, batch_size, random_state)
+                self.optimizer = MiniBatchGradientDescent(learning_rate, batch_size, random_state)
             elif optimizer == 'normal_equation':
                 self.optimizer = NormalEquation(random_state=random_state)
             elif optimizer == 'adam':
-                self.optimizer = AdamOptimizer(learning_rate=learning_rate, beta1=0.9, beta2=0.999, epsilon=1e-8, random_state=random_state)
+                self.optimizer = AdamOptimizer(learning_rate=learning_rate, beta1=0.9, beta2=0.999, 
+                                               epsilon=1e-8, random_state=random_state)
             else:
                 raise ValueError(
-                    "Unknown optimizer. Use 'gradient_descent', 'sgd', 'mini_batch_gd', or 'normal_equation'.")
+                    "Unknown optimizer. Please choose one of: 'gradient_descent', 'sgd', 'mini_batch_gd', or 'normal_equation'.")
         else:
             # Giả sử người dùng truyền vào một đối tượng optimizer tùy chỉnh
             self.optimizer = optimizer
@@ -138,29 +138,13 @@ class LinearRegression():
     def evaluate(self, X, y):
         """Đánh giá mô hình trên tập test"""
         y_pred = self.predict(X)
-
-        # Mean Squared Error
-        mse = np.mean((y - y_pred) ** 2)
-
-        # Root Mean Squared Error
-        rmse = np.sqrt(mse)
-
-        # Mean Absolute Error
-        mae = np.mean(np.abs(y - y_pred))
-        maee = np.mean(np.abs(np.exp(y) - np.exp(y_pred)))
-
-
-        # R-squared
-        ss_total = np.sum((y - np.mean(y)) ** 2)
-        ss_residual = np.sum((y - y_pred) ** 2)
-        r2 = 1 - (ss_residual / ss_total)
-
+        
         metrics = {
-            'MSE': mse,
-            'RMSE': rmse,
-            'MAE': mae,
-            'R²': r2,
-            "MAE exp": maee
+            'MSE': mean_square_error(y, y_pred),
+            'RMSE': root_mean_square_error(y, y_pred),
+            'MAE': mean_absolute_error(y, y_pred),
+            'R²': r2_score(y, y_pred),
+            "MAE exp": np.mean(np.abs(np.exp(y) - np.exp(y_pred)))
         }
 
         # In ra các metrix

@@ -85,41 +85,34 @@ class BaseOptimizer:
 
     def compute_gradients(self, X, y, weights, bias, regularization=None, lambda_param=0):
         """
-        Tính gradients cho weights và bias
-
-        Parameters:
-        -----------
-        X : numpy.ndarray
-            Dữ liệu đầu vào
-        y : numpy.ndarray
-            Giá trị mục tiêu
-        weights : numpy.ndarray
-            Trọng số hiện tại
-        bias : float
-            Bias hiện tại
-        regularization : str, optional ('l1', 'l2', None)
-            Phương pháp regularization
-        lambda_param : float
-            Tham số regularization
-
-        Returns:
-        --------
-        dw : numpy.ndarray
-            Gradients của weights
-        db : float
-            Gradient của bias
+        Tính gradients cho weights và bias (Corrected Shape Handling)
         """
         m = X.shape[0]
+        n_features = X.shape[1] # Get number of features
         y_pred = np.dot(X, weights) + bias
 
-        dw = (1/m) * (X.T @ (y_pred.reshape((-1, 1)) - y.reshape((-1, 1))))
-        db = (1/m) * np.sum(y_pred - y)
-        # Thêm đạo hàm của regularization
+        # Ensure y and y_pred are column vectors (m, 1) for consistent subtraction
+        y = np.asarray(y).reshape(-1, 1)
+        y_pred = np.asarray(y_pred).reshape(-1, 1)
+        error = y_pred - y # Shape (m, 1)
+
+        # Calculate main gradient dw - shape (n_features, 1)
+        dw = (1/m) * (X.T @ error)
+        # Calculate scalar gradient db
+        db = (1/m) * np.sum(error) # db is a scalar
+
+        # Add regularization gradient term (Ensure weights has shape (n_features, 1) for addition)
         if regularization == 'l2':  # Ridge
-            dw += (lambda_param/m) * weights
+            # Reshape weights to column vector before multiplying and adding
+            dw += (lambda_param/m) * weights.reshape(-1, 1)
         elif regularization == 'l1':  # Lasso
-            dw += (lambda_param/m) * np.sign(weights)
+            # Reshape weights to column vector before sign() and adding
+            dw += (lambda_param/m) * np.sign(weights.reshape(-1, 1))
+
+        # Reshape final dw back to (n_features,) to match the original weights shape for updates
         dw = dw.reshape(-1)
+
+        # Return dw as 1D array (n_features,) and db as a scalar
         return dw, db
 
     def optimize(self, X, y, weights, bias, n_iterations, regularization=None,
@@ -418,43 +411,35 @@ class NormalEquation(BaseOptimizer):
     """
     Thuật toán Normal Equation
     """
-
     def optimize(self, X, y, weights, bias, n_iterations=1, regularization=None,
-                 lambda_param=0, tol=1e-6, max_iter=None, verbose=False):
-        """
-        Thực hiện tối ưu với Normal Equation (chỉ cần 1 bước)
-        """
+                       lambda_param=0, tol=1e-6, max_iter=None, verbose=False):
         m = X.shape[0]
         costs = []
         iterations = [0]
-
-        # Thêm cột bias
+        y = np.asarray(y).reshape(-1, 1)
         X_b = np.column_stack((np.ones(m), X))
-
-        # Tính weights theo công thức normal equation
-        if regularization == 'l2':  # Ridge
-            # Formula: θ = (X^T X + λI)^(-1) X^T y
-            # Chú ý: không áp dụng regularization cho bias
+        A = X_b.T @ X_b
+        b_vec = X_b.T @ y
+        if regularization == 'l2':
             reg_matrix = np.eye(X_b.shape[1])
-            reg_matrix[0, 0] = 0  # Không regularize bias
+            reg_matrix[0, 0] = 0
+            A += lambda_param * reg_matrix
 
-            theta = np.linalg.inv(
-                X_b.T.dot(X_b) + lambda_param * reg_matrix).dot(X_b.T).dot(y)
-        else:
-            # Formula: θ = (X^T X)^(-1) X^T y
-            theta = np.linalg.inv(X_b.T.dot(X_b)).dot(X_b.T).dot(y)
+        try:
+            # Solve Ax = b for x (which is theta)
+            theta = np.linalg.solve(A, b_vec) # More stable than inv
+        except np.linalg.LinAlgError:
+             print("Error: Matrix is singular or near-singular. Cannot solve.")
+             print("Consider adding L2 regularization or using np.linalg.lstsq.")
+             return weights, bias, [np.inf], iterations
 
-        # Tách weights và bias
-        bias = theta[0]
-        weights = theta[1:]
-
-        cost = compute_cost(X, y, weights, bias)
+        bias = theta[0, 0]
+        weights = theta[1:].reshape(-1)
+        cost = compute_cost(X, y, weights, bias, regularization, lambda_param)
         costs.append(cost)
-
-        if verbose:
-            print(f"Normal Equation - Cost: {cost:.6f}")
-
+        if verbose: print(f"Normal Equation (solve) - Cost: {cost:.6f}")
         return weights, bias, costs, iterations
+
 
 
 class AdamOptimizer(BaseOptimizer):
