@@ -46,8 +46,9 @@ class VehicleDataPreprocessor:
             "Log_Price": (13.80687969810898, 0.9834000219767532)
         }
 
-        self.price_outlier_threshold = 17586000.00
-        
+        self.price_outlier_threshold = 15468306.941920616
+        # self.price_outlier_threshold = 10000000
+
 
     def preprocess(self, df, train=False, norm=True):
         """Pipeline tiền xử lý chính gọi tất cả các phương thức tiền xử lý riêng lẻ"""
@@ -80,7 +81,9 @@ class VehicleDataPreprocessor:
         """Xử lý cột Price: chuyển đổi log và loại bỏ cột gốc"""
         if 'Price' in df.columns:
             df['Log_Price'] = np.log(df['Price'])
-            if train: df = df[df["Price"] < self.price_outlier_threshold]
+            if train:
+                df = df[df["Price"] < self.price_outlier_threshold]
+                # df = df[(df['Price'] > 12000000) | (df['Price'] < 11000000)]
             df.drop('Price', axis=1, inplace=True)
         return df
 
@@ -338,7 +341,9 @@ class VehicleDataPreprocessor:
 
             # Loại bỏ các cột gốc và nhóm
             if 'Fuel_Diesel' in df.columns:
-                df.drop(['Fuel Type', 'Fuel_Type_Grouped', 'Fuel_Diesel'], axis=1, inplace=True)
+                df.drop(['Fuel Type', 'Fuel_Type_Grouped',
+                         # 'Fuel_Diesel'
+                         ], axis=1, inplace=True)
             else:
                 df.drop(['Fuel Type', 'Fuel_Type_Grouped'], axis=1, inplace=True)
 
@@ -394,7 +399,9 @@ class VehicleDataPreprocessor:
 
             # Loại bỏ cột gốc, nhóm và một danh mục tham chiếu
             if 'Color_White' in df.columns:
-                df.drop(['Color', 'Color_Group', 'Color_White'], axis=1, inplace=True)
+                df.drop(['Color', 'Color_Group',
+                         # 'Color_White'
+                         ], axis=1, inplace=True)
             else:
                 df.drop(['Color', 'Color_Group'], axis=1, inplace=True)
 
