@@ -446,7 +446,11 @@ class NormalEquation(BaseOptimizer):
                 X_b.T.dot(X_b) + lambda_param * reg_matrix).dot(X_b.T).dot(y)
         else:
             # Formula: θ = (X^T X)^(-1) X^T y
-            theta = np.linalg.inv(X_b.T.dot(X_b)).dot(X_b.T).dot(y)
+            X_b = np.column_stack((np.ones(m), X))
+            A = X_b.T.dot(X_b)
+            b = X_b.T.dot(y)
+            theta = np.linalg.solve(A, b)
+            # theta = np.linalg.inv(X_b.T.dot(X_b)).dot(X_b.T).dot(y)
 
         # Tách weights và bias
         bias = theta[0]
