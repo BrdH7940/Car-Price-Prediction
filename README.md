@@ -1,5 +1,9 @@
 # MATHS-FOR-AI
 
+## Thư viện sử dụng:
+
+- numpy, pandas, matplotlib, seaborn, pickle
+
 ## Hướng dẫn sử dụng
 
 - Toàn bộ nội dung chạy từ trên xuống được viết trong file "Lab.ipynb"
