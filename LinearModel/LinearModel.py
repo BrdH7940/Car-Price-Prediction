@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from typing import Optional, Union, Callable, List, Tuple, Dict
 from LinearModel.Optimizer import *
 
@@ -189,7 +190,7 @@ class LinearRegression:
             'rmse': [],
             'mae': [],
             'r2': [],
-            'mae original': []
+            'mae (price)': []
         }
 
         # Perform cross-validation
@@ -269,6 +270,588 @@ class LinearRegression:
             'mse': mse,
             'rmse': rmse,
             'mae': mae,
-            'mae original': maee,
+            'mae (price)': maee,
             'r2': r2
         }
+
+    def _collect_metrics_during_training(self, X: np.ndarray, y: np.ndarray,
+                                         X_val: Optional[np.ndarray] = None,
+                                         y_val: Optional[np.ndarray] = None,
+                                         verbose: bool = False) -> Dict[str, List[float]]:
+        """
+        Thu thập các metric trong quá trình huấn luyện mô hình.
+
+        Parameters:
+        -----------
+        X : np.ndarray
+            Dữ liệu huấn luyện.
+        y : np.ndarray
+            Giá trị mục tiêu huấn luyện.
+        X_val : np.ndarray, optional
+            Dữ liệu validation.
+        y_val : np.ndarray, optional
+            Giá trị mục tiêu validation.
+        verbose : bool, default=False
+            Hiển thị tiến trình hay không.
+
+        Returns:
+        --------
+        Dict[str, List[float]]
+            Dictionary chứa các metric theo từng iteration.
+        """
+        # Khởi tạo optimizer mới để bắt đầu huấn luyện
+        self._init_optimizer()
+
+        X_with_intercept = self.optimizer._add_intercept(X)
+        n_samples, n_features = X_with_intercept.shape
+
+        # Khởi tạo biến để theo dõi metrics
+        history = {
+            'train_mse': [],
+            'train_rmse': [],
+            'train_mae': [],
+            'train_mae (price)': [],
+            'train_r2': [],
+            'iteration': []
+        }
+
+        if X_val is not None and y_val is not None:
+            X_val_with_intercept = self.optimizer._add_intercept(X_val)
+            history['val_mse'] = []
+            history['val_rmse'] = []
+            history['val_mae'] = []
+            history['val_mae (price)'] = []
+            history['val_r2'] = []
+
+        # Khởi tạo weights
+        if self.optimizer.weights is None:
+            self.optimizer.weights = self.optimizer._initialize_weights(n_features)
+
+        prev_cost = float('inf')
+
+        # Xử lý theo từng loại optimizer
+        if self.optimizer_name == 'normal':
+            # Normal equation không cần theo dõi quá trình huấn luyện
+            self.optimizer.fit(X, y, self.l1_penalty, self.l2_penalty)
+
+            # Thu thập metric sau khi fit hoàn tất
+            y_pred_train = X_with_intercept @ self.optimizer.weights
+            train_metrics = self._evaluate(y, y_pred_train)
+
+            for key, value in train_metrics.items():
+                history[f'train_{key}'] = [value]
+
+            history['iteration'] = [1]
+
+            if X_val is not None and y_val is not None:
+                y_pred_val = X_val_with_intercept @ self.optimizer.weights
+                val_metrics = self._evaluate(y_val, y_pred_val)
+
+                for key, value in val_metrics.items():
+                    history[f'val_{key}'] = [value]
+
+            return history
+
+        elif self.optimizer_name == 'gd':
+            # Gradient Descent
+            for iteration in range(1, self.optimizer.max_iter + 1):
+                # Compute predictions
+                y_pred = X_with_intercept @ self.optimizer.weights
+
+                # Compute gradient of MSE
+                gradient = (1 / n_samples) * X_with_intercept.T @ (y_pred - y)
+
+                # Add L2 regularization gradient if specified
+                if self.l2_penalty > 0:
+                    # Don't regularize intercept
+                    reg_weights = np.copy(self.optimizer.weights)
+                    reg_weights[0] = 0
+                    gradient += self.l2_penalty * reg_weights
+
+                # Add L1 regularization gradient if specified
+                if self.l1_penalty > 0:
+                    # Don't regularize intercept
+                    reg_weights = np.copy(self.optimizer.weights)
+                    reg_weights[0] = 0
+                    gradient += self.l1_penalty * np.sign(reg_weights)
+
+                # Update weights
+                self.optimizer.weights -= self.optimizer.learning_rate * gradient
+
+                # Compute current cost
+                y_pred_train = X_with_intercept @ self.optimizer.weights
+                train_metrics = self._evaluate(y, y_pred_train)
+
+                # Collect metrics every 10 iterations or on the first/last iteration
+                if iteration % 10 == 0 or iteration == 1 or iteration == self.optimizer.max_iter:
+                    history['iteration'].append(iteration)
+
+                    for key, value in train_metrics.items():
+                        history[f'train_{key}'].append(value)
+
+                    if X_val is not None and y_val is not None:
+                        y_pred_val = X_val_with_intercept @ self.optimizer.weights
+                        val_metrics = self._evaluate(y_val, y_pred_val)
+
+                        for key, value in val_metrics.items():
+                            history[f'val_{key}'].append(value)
+
+                # Check for convergence
+                current_mse = train_metrics['mse']
+                if abs(prev_cost - current_mse) < self.optimizer.tol:
+                    if verbose:
+                        print(f"Converged after {iteration} iterations.")
+                    break
+
+                prev_cost = current_mse
+
+                # Print progress if verbose
+                if verbose and iteration % 50 == 0:
+                    print(f"Iteration {iteration}/{self.optimizer.max_iter}, MSE: {current_mse:.6f}")
+
+        elif self.optimizer_name in ['sgd', 'mini_batch_gd']:
+            # Stochastic GD or Mini-batch GD
+            indices = np.arange(n_samples)
+
+            for iteration in range(1, self.optimizer.max_iter + 1):
+                # Shuffle the data
+                np.random.shuffle(indices)
+                X_shuffled = X_with_intercept[indices]
+                y_shuffled = y[indices]
+
+                if self.optimizer_name == 'sgd':
+                    # Process each sample for SGD
+                    for i in range(n_samples):
+                        x_i = X_shuffled[i:i + 1]
+                        y_i = y_shuffled[i:i + 1]
+
+                        # Compute prediction and gradient
+                        y_pred = x_i @ self.optimizer.weights
+                        gradient = x_i.T @ (y_pred - y_i)
+
+                        # Add regularization
+                        if self.l2_penalty > 0:
+                            reg_weights = np.copy(self.optimizer.weights)
+                            reg_weights[0] = 0  # Don't regularize intercept
+                            gradient += self.l2_penalty * reg_weights
+
+                        if self.l1_penalty > 0:
+                            reg_weights = np.copy(self.optimizer.weights)
+                            reg_weights[0] = 0
+                            gradient += self.l1_penalty * np.sign(reg_weights)
+
+                        # Update weights
+                        self.optimizer.weights -= self.optimizer.learning_rate * gradient
+
+                else:  # mini_batch_gd
+                    # Process mini-batches
+                    for i in range(0, n_samples, self.optimizer.batch_size):
+                        X_batch = X_shuffled[i:i + self.optimizer.batch_size]
+                        y_batch = y_shuffled[i:i + self.optimizer.batch_size]
+
+                        # Compute prediction
+                        y_pred = X_batch @ self.optimizer.weights
+
+                        # Compute gradient
+                        gradient = (1 / len(X_batch)) * X_batch.T @ (y_pred - y_batch)
+
+                        # Add regularization
+                        if self.l2_penalty > 0:
+                            reg_weights = np.copy(self.optimizer.weights)
+                            reg_weights[0] = 0
+                            gradient += self.l2_penalty * reg_weights
+
+                        if self.l1_penalty > 0:
+                            reg_weights = np.copy(self.optimizer.weights)
+                            reg_weights[0] = 0
+                            gradient += self.l1_penalty * np.sign(reg_weights)
+
+                        # Update weights
+                        self.optimizer.weights -= self.optimizer.learning_rate * gradient
+
+                # Compute current metrics on full dataset
+                y_pred_train = X_with_intercept @ self.optimizer.weights
+                train_metrics = self._evaluate(y, y_pred_train)
+
+                # Collect metrics periodically
+                if iteration % 10 == 0 or iteration == 1 or iteration == self.optimizer.max_iter:
+                    history['iteration'].append(iteration)
+
+                    for key, value in train_metrics.items():
+                        history[f'train_{key}'].append(value)
+
+                    if X_val is not None and y_val is not None:
+                        y_pred_val = X_val_with_intercept @ self.optimizer.weights
+                        val_metrics = self._evaluate(y_val, y_pred_val)
+
+                        for key, value in val_metrics.items():
+                            history[f'val_{key}'].append(value)
+
+                # Check for convergence
+                current_mse = train_metrics['mse']
+                if abs(prev_cost - current_mse) < self.optimizer.tol:
+                    if verbose:
+                        print(f"Converged after {iteration} iterations.")
+                    break
+
+                prev_cost = current_mse
+
+                # Print progress if verbose
+                if verbose and iteration % 20 == 0:
+                    print(f"Iteration {iteration}/{self.optimizer.max_iter}, MSE: {current_mse:.6f}")
+
+        elif self.optimizer_name == 'adam':
+            # Adam optimizer
+            m = np.zeros_like(self.optimizer.weights)
+            v = np.zeros_like(self.optimizer.weights)
+
+            for iteration in range(1, self.optimizer.max_iter + 1):
+                # Compute prediction
+                y_pred = X_with_intercept @ self.optimizer.weights
+
+                # Compute gradient
+                gradient = (1 / n_samples) * X_with_intercept.T @ (y_pred - y)
+
+                # Add regularization
+                if self.l2_penalty > 0:
+                    reg_weights = np.copy(self.optimizer.weights)
+                    reg_weights[0] = 0
+                    gradient += self.l2_penalty * reg_weights
+
+                if self.l1_penalty > 0:
+                    reg_weights = np.copy(self.optimizer.weights)
+                    reg_weights[0] = 0
+                    gradient += self.l1_penalty * np.sign(reg_weights)
+
+                # Update biased first moment estimate
+                m = self.optimizer.beta1 * m + (1 - self.optimizer.beta1) * gradient
+                # Update biased second raw moment estimate
+                v = self.optimizer.beta2 * v + (1 - self.optimizer.beta2) * (gradient ** 2)
+
+                # Compute bias-corrected first moment estimate
+                m_hat = m / (1 - self.optimizer.beta1 ** iteration)
+                # Compute bias-corrected second raw moment estimate
+                v_hat = v / (1 - self.optimizer.beta2 ** iteration)
+
+                # Update weights
+                self.optimizer.weights -= self.optimizer.learning_rate * m_hat / (
+                            np.sqrt(v_hat) + self.optimizer.epsilon)
+
+                # Compute current metrics
+                y_pred_train = X_with_intercept @ self.optimizer.weights
+                train_metrics = self._evaluate(y, y_pred_train)
+
+                # Collect metrics periodically
+                if iteration % 10 == 0 or iteration == 1 or iteration == self.optimizer.max_iter:
+                    history['iteration'].append(iteration)
+
+                    for key, value in train_metrics.items():
+                        history[f'train_{key}'].append(value)
+
+                    if X_val is not None and y_val is not None:
+                        y_pred_val = X_val_with_intercept @ self.optimizer.weights
+                        val_metrics = self._evaluate(y_val, y_pred_val)
+
+                        for key, value in val_metrics.items():
+                            history[f'val_{key}'].append(value)
+
+                # Check for convergence
+                current_mse = train_metrics['mse']
+                if abs(prev_cost - current_mse) < self.optimizer.tol:
+                    if verbose:
+                        print(f"Converged after {iteration} iterations.")
+                    break
+
+                prev_cost = current_mse
+
+                # Print progress if verbose
+                if verbose and iteration % 20 == 0:
+                    print(f"Iteration {iteration}/{self.optimizer.max_iter}, MSE: {current_mse:.6f}")
+
+        return history
+
+    def plot_learning_curve(self, X: np.ndarray, y: np.ndarray,
+                            val_size: float = 0.2, random_state: Optional[int] = None,
+                            metrics: List[str] = ['mse', 'mae'],
+                            figsize: Tuple[int, int] = (15, 10),
+                            verbose: bool = False) -> Dict[str, List[float]]:
+        """
+        Vẽ biểu đồ learning curve cho các metric trên tập train và validation.
+
+        Parameters:
+        -----------
+        X : np.ndarray
+            Dữ liệu huấn luyện.
+        y : np.ndarray
+            Giá trị mục tiêu.
+        val_size : float, default=0.2
+            Tỷ lệ dữ liệu dành cho validation.
+        random_state : int, optional
+            Seed cho việc chia dữ liệu.
+        metrics : List[str], default=['mse', 'mae']
+            Danh sách các metric cần vẽ.
+        figsize : Tuple[int, int], default=(15, 10)
+            Kích thước của biểu đồ.
+        verbose : bool, default=False
+            Hiển thị tiến trình hay không.
+
+        Returns:
+        --------
+        Dict[str, List[float]]
+            Dictionary chứa lịch sử các metric.
+        """
+        # Khởi tạo random_state nếu được cung cấp
+        if random_state is not None:
+            np.random.seed(random_state)
+
+        # Chia dữ liệu thành tập train và validation
+        n_samples = X.shape[0]
+        indices = np.random.permutation(n_samples)
+        val_samples = int(n_samples * val_size)
+
+        X_train = X[indices[val_samples:]]
+        y_train = y[indices[val_samples:]]
+        X_val = X[indices[:val_samples]]
+        y_val = y[indices[:val_samples]]
+
+        if verbose:
+            print(f"Training with {X_train.shape[0]} samples, validating with {X_val.shape[0]} samples")
+
+        # Thu thập metrics trong quá trình huấn luyện
+        history = self._collect_metrics_during_training(X_train, y_train, X_val, y_val, verbose)
+
+        # Vẽ biểu đồ learning curve
+        if not metrics:
+            metrics = ['mse', 'mae']
+
+        n_metrics = len(metrics)
+        fig, axes = plt.subplots(1, n_metrics, figsize=figsize)
+
+        # Xử lý trường hợp chỉ có 1 metric
+        if n_metrics == 1:
+            axes = [axes]
+
+        for i, metric in enumerate(metrics):
+            ax = axes[i]
+
+            train_metric_key = f'train_{metric}'
+            val_metric_key = f'val_{metric}'
+
+            ax.plot(history['iteration'], history[train_metric_key], 'b-', label=f'Training {metric.upper()}')
+
+            if val_metric_key in history:
+                ax.plot(history['iteration'], history[val_metric_key], 'r-', label=f'Validation {metric.upper()}')
+
+            ax.set_title(f'Learning Curve - {metric.upper()}')
+            ax.set_xlabel('Iterations')
+            ax.set_ylabel(metric.upper())
+            ax.legend()
+
+            # Set logy scale for better visualization
+            if any(x > 0 for x in history[train_metric_key]):
+                ax.set_yscale('log')
+
+        plt.tight_layout()
+        plt.show()
+
+        return history
+
+    def plot_cross_validation_metrics(self, X: np.ndarray, y: np.ndarray,
+                                      n_folds: int = 5, shuffle: bool = True,
+                                      metrics: List[str] = ['mse', 'mae', 'r2'],
+                                      figsize: Tuple[int, int] = (15, 5),
+                                      verbose: bool = False) -> Dict[str, List[float]]:
+        """
+        Vẽ biểu đồ so sánh các metric trên các fold của cross-validation.
+
+        Parameters:
+        -----------
+        X : np.ndarray
+            Dữ liệu huấn luyện.
+        y : np.ndarray
+            Giá trị mục tiêu.
+        n_folds : int, default=5
+            Số lượng fold cho cross-validation.
+        shuffle : bool, default=True
+            Xáo trộn dữ liệu trước khi chia fold.
+        metrics : List[str], default=['mse', 'mae', 'r2']
+            Danh sách các metric cần vẽ.
+        figsize : Tuple[int, int], default=(15, 5)
+            Kích thước của biểu đồ.
+        verbose : bool, default=False
+            Hiển thị tiến trình hay không.
+
+        Returns:
+        --------
+        Dict[str, List[float]]
+            Kết quả cross-validation.
+        """
+        # Thực hiện cross-validation
+        cv_results = self.cross_validate(X, y, n_folds, shuffle, verbose)
+
+        # Vẽ biểu đồ các metric
+        if not metrics:
+            metrics = ['mse', 'mae', 'r2']
+
+        n_metrics = len(metrics)
+        fig, axes = plt.subplots(1, n_metrics, figsize=figsize)
+
+        # Xử lý trường hợp chỉ có 1 metric
+        if n_metrics == 1:
+            axes = [axes]
+
+        for i, metric in enumerate(metrics):
+            ax = axes[i]
+
+            if metric in cv_results:
+                # Vẽ biểu đồ boxplot cho metric
+                ax.boxplot(cv_results[metric])
+
+                # Thêm các điểm dữ liệu để thấy rõ hơn phân phối
+                x = np.random.normal(1, 0.04, size=len(cv_results[metric]))
+                ax.plot(x, cv_results[metric], 'r.', alpha=0.5)
+
+                # Thêm giá trị trung bình
+                avg_metric = np.mean(cv_results[metric])
+                ax.axhline(y=avg_metric, color='b', linestyle='--',
+                           label=f'Avg: {avg_metric:.4f}')
+
+                ax.set_title(f'{metric.upper()} across {n_folds} folds')
+                ax.set_ylabel(metric.upper())
+                ax.legend()
+                ax.grid(True, linestyle='--', alpha=0.7)
+            else:
+                ax.text(0.5, 0.5, f"Metric '{metric}' not available",
+                        horizontalalignment='center', verticalalignment='center',
+                        transform=ax.transAxes)
+
+        plt.tight_layout()
+        plt.show()
+
+        return cv_results
+
+    def compare_optimizers(self, X: np.ndarray, y: np.ndarray,
+                           optimizers: List[str] = ['normal', 'gd', 'sgd', 'mini_batch_gd', 'adam'],
+                           metrics: List[str] = ['mse', 'mae', 'r2'],
+                           val_size: float = 0.2,
+                           random_state: Optional[int] = None,
+                           figsize: Tuple[int, int] = (15, 10),
+                           verbose: bool = False) -> Dict[str, Dict[str, List[float]]]:
+        """
+        So sánh hiệu suất của các loại optimizer khác nhau.
+
+        Parameters:
+        -----------
+        X : np.ndarray
+            Dữ liệu huấn luyện.
+        y : np.ndarray
+            Giá trị mục tiêu.
+        optimizers : List[str], default=['normal', 'gd', 'sgd', 'mini_batch_gd', 'adam']
+            Danh sách các optimizer cần so sánh.
+        metrics : List[str], default=['mse', 'mae', 'r2']
+            Danh sách các metric cần vẽ.
+        val_size : float, default=0.2
+            Tỷ lệ dữ liệu dành cho validation.
+        random_state : int, optional
+            Seed cho việc chia dữ liệu.
+        figsize : Tuple[int, int], default=(15, 10)
+            Kích thước của biểu đồ.
+        verbose : bool, default=False
+            Hiển thị tiến trình hay không.
+
+        Returns:
+        --------
+        Dict[str, Dict[str, List[float]]]
+            Dictionary chứa kết quả của từng optimizer.
+        """
+        # Lưu lại optimizer hiện tại
+        current_optimizer = self.optimizer_name
+
+        # Chia dữ liệu thành tập train và validation
+        if random_state is not None:
+            np.random.seed(random_state)
+
+        n_samples = X.shape[0]
+        indices = np.random.permutation(n_samples)
+        val_samples = int(n_samples * val_size)
+
+        X_train = X[indices[val_samples:]]
+        y_train = y[indices[val_samples:]]
+        X_val = X[indices[:val_samples]]
+        y_val = y[indices[:val_samples]]
+
+        if verbose:
+            print(f"Training with {X_train.shape[0]} samples, validating with {X_val.shape[0]} samples")
+
+        # Dictionary để lưu kết quả
+        results = {}
+
+        # Đánh giá từng optimizer
+        for opt in optimizers:
+            if verbose:
+                print(f"\nEvaluating {opt} optimizer...")
+
+            # Đặt optimizer hiện tại
+            self.optimizer_name = opt
+            self._init_optimizer()
+
+            # Huấn luyện mô hình
+            self.fit(X_train, y_train, verbose=verbose)
+
+            # Đánh giá trên tập train
+            y_pred_train = self.predict(X_train)
+            train_metrics = self._evaluate(y_train, y_pred_train)
+
+            # Đánh giá trên tập validation
+            y_pred_val = self.predict(X_val)
+            val_metrics = self._evaluate(y_val, y_pred_val)
+
+            # Lưu kết quả
+            results[opt] = {
+                'train': train_metrics,
+                'validation': val_metrics
+            }
+
+            if verbose:
+                print(f"  Train metrics: {train_metrics}")
+                print(f"  Validation metrics: {val_metrics}")
+
+        # Khôi phục optimizer ban đầu
+        self.optimizer_name = current_optimizer
+        self._init_optimizer()
+
+        # Vẽ biểu đồ so sánh
+        if not metrics:
+            metrics = ['mse', 'mae', 'r2']
+
+        n_metrics = len(metrics)
+        fig, axes = plt.subplots(2, n_metrics, figsize=figsize)
+
+        # Tạo danh sách dữ liệu cho mỗi metric
+        for i, metric in enumerate(metrics):
+            # Dữ liệu cho tập train
+            train_values = [results[opt]['train'][metric] for opt in optimizers]
+            axes[0, i].bar(optimizers, train_values, color='b', alpha=0.7)
+            axes[0, i].set_title(f'Training {metric.upper()}')
+            axes[0, i].set_ylabel(metric.upper())
+            axes[0, i].set_xticklabels(optimizers, rotation=45)
+
+            # Thêm giá trị lên các cột
+            for j, v in enumerate(train_values):
+                axes[0, i].text(j, v, f"{v:.4f}", ha='center', va='bottom', fontsize=9)
+
+            # Dữ liệu cho tập validation
+            val_values = [results[opt]['validation'][metric] for opt in optimizers]
+            axes[1, i].bar(optimizers, val_values, color='r', alpha=0.7)
+            axes[1, i].set_title(f'Validation {metric.upper()}')
+            axes[1, i].set_ylabel(metric.upper())
+            axes[1, i].set_xticklabels(optimizers, rotation=45)
+
+            # Thêm giá trị lên các cột
+            for j, v in enumerate(val_values):
+                axes[1, i].text(j, v, f"{v:.4f}", ha='center', va='bottom', fontsize=9)
+
+        plt.tight_layout()
+        plt.show()
+
+        return results

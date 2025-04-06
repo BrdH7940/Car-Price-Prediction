@@ -47,7 +47,7 @@ class VehicleDataPreprocessor:
         }
 
         self.price_outlier_threshold = 15468306.941920616
-        # self.price_outlier_threshold = 10000000
+        # self.price_outlier_threshold = 11220004.286635086
 
 
     def preprocess(self, df, train=False, norm=True):

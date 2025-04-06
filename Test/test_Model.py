@@ -12,6 +12,7 @@ from utils.data_preprocessing import train_test_split
 import seaborn as sns
 import warnings
 warnings.filterwarnings('ignore')
+import pickle
 
 
 def visualize_results(X_test, y_test, y_pred, title="Predictions vs. Actual Values"):
@@ -56,32 +57,9 @@ if __name__ == "__main__":
     X_train_o = FeatureSelector._non_linearize_features(X_train)
     X_test_o = FeatureSelector._non_linearize_features(X_test)
 
-    # print(X_train.columns)
-
-    # print(X_train.shape)
-
     feats, X_train = FeatureSelector.get_features(X_train)
     _, X_test = FeatureSelector.get_features(X_test)
-    corr_matrix = X_train_o.corr()
-    plt.figure(figsize=(10, 8))
 
-    # Tạo heatmap
-    mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
-    sns.heatmap(corr_matrix,
-                annot=True,  # Hiển thị giá trị tương quan
-                mask=mask,  # Chỉ hiển thị nửa dưới của ma trận
-                cmap='coolwarm',  # Bảng màu
-                vmin=-1, vmax=1,  # Giới hạn giá trị
-                fmt='.2f',  # Format số thập phân
-                square=True,  # Ô vuông
-                linewidths=.5)  # Độ rộng đường viền
-
-    # Thêm tiêu đề
-    plt.title('Ma trận tương quan', fontsize=15)
-
-    # Hiển thị plot
-    plt.tight_layout()
-    plt.show()
     for i in range(1,5):
         print(f" === MODEL {i} ===")
         feats, X_train = FeatureSelector.get_df(X_train_o, model_id=i, get_Log_Price=False)
@@ -107,30 +85,45 @@ if __name__ == "__main__":
         )
 
         # Huấn luyện mô hình
-        model.fit(X_train, y_train, verbose=False)
+        # model.fit(X_train, y_train, verbose=False)
+        # Vẽ learning curve
+        history = model.plot_learning_curve(X_train, y_train, val_size=0.1,
+                                            figsize=(20,10),
+                                            metrics=['mse'], verbose=False)
 
         # Dự đoán và đánh giá
         # y_pred_train = model.predict(X_train)
         # metrics = model._evaluate(y_train, y_pred_train)
         # print("Train metrics: ", metrics)
         # visualize_results(X_train, y_train, y_pred_train)
-        y_pred = model.predict(X_test)
-        metrics = model._evaluate(y_test, y_pred)
-        print("Test metrics:", metrics)
+        # y_pred = model.predict(X_test)
+        # metrics = model._evaluate(y_test, y_pred)
+        # print("Test metrics:", metrics)
+        #
+        # visualize_results(X_test, y_test, y_pred)
+        # visualize_results(X_test, np.exp(y_test), np.exp(y_pred))
+        #
+        # sns.histplot(y_test - y_pred)
+        # plt.show()
 
-        # Cross-validation
-        cv_results = model.cross_validate(X_train, y_train, n_folds=5, verbose=False)
-        y_pred = model.predict(X_test)
-        metrics = model._evaluate(y_test, y_pred)
-        print("Test metrics:", metrics)
-        feats.insert(0, "Intercept")
-        # for col, weight in zip(feats, model.optimizer.weights):
-        #     if np.abs(weight) >= 0.01:
-        #         print(f"'{col}', {weight}")
+        # # Cross-validation
+        # cv_results = model.cross_validate(X_train, y_train, n_folds=10, verbose=False)
+        # y_pred = model.predict(X_test)
+        # metrics = model._evaluate(y_test, y_pred)
+        # print("Test metrics:", metrics)
+        # feats.insert(0, "Intercept")
+        # # for col, weight in zip(feats, model.optimizer.weights):
+        # #     if np.abs(weight) >= 0.01:
+        # #         print(f"'{col}', {weight}")
 
-
-        visualize_results(X_test, y_test, y_pred)
-        visualize_results(X_test, np.exp(y_test), np.exp(y_pred))
+        # history = model.plot_cross_validation_metrics(X_train, y_train, n_folds=10, figsize=(20,10), metrics=['mse'])
+        # print("Cross validation metrics:", history)
+        # y_pred = model.predict(X_test)
+        # metrics = model._evaluate(y_test, y_pred)
+        # print("After Cross-Validate metrics:", metrics)
+        #
+        # visualize_results(X_test, y_test, y_pred)
+        # visualize_results(X_test, np.exp(y_test), np.exp(y_pred))
 
     # print(X_train[:,1].max())
 
