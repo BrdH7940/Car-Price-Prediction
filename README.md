@@ -1,5 +1,9 @@
 # MATHS-FOR-AI
 
+## Hướng dẫn sử dụng
+
+- Toàn bộ nội dung chạy từ trên xuống được viết trong file "Lab.ipynb"
+
 ## Cấu trúc thư mục
 
 ```markdown
@@ -47,6 +51,6 @@ MATHS-FOR-AI/
 │ ├── analysis/ # Output phân tích
 │ └── train/ # Output trong quá trình huấn luyện
 ├── .gitignore # File cấu hình Git
-├── Lab.ipynb # File notebook chính hoặc thử nghiệm
+├── Lab.ipynb # File notebook chính
 └── README.md # File README chính của dự án
 ```
