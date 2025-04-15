@@ -1,5 +1,7 @@
 # MATHS-FOR-AI
 
+Miêu tả ngắn gọn: Sử dụng Linear Regression để phân tích giá xe dựa trên việc phân tích đặc trưng.
+
 ## Thư viện sử dụng:
 
 - numpy, pandas, matplotlib, seaborn, pickle
